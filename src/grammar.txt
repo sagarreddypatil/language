@@ -1,0 +1,40 @@
+name ::= [^ \t\n(){},;_]+ | '_'              // variable name
+// '_' instantiates an anonymous type/data variable
+
+mtype ::= ':' name                           // mandatory type annotation
+otype ::= (mtype)?                           // optional type annotation
+
+cons ::= name                                // type constructor, no values
+cons ::= name '(' name (',' name)* ')'       // tagged values
+
+cons ::= <all type literals>                 // char, bool, int, float
+                                             // list, string, tuple, unit
+
+inst ::= 'data' '=' (cons)('|' cons)*        // ADT
+alias ::= 'type' name '=' name               // type alias
+
+expr ::= let cons '=' simp (';'|'\n') expr   // binding
+expr ::= simp
+
+simp ::= fn([name otype ',']+) otype simp    // function/closure
+simp ::= 'match' simp [cons ':' simp]+       // pattern matching
+simp ::= name '(' simp (',' simp)* ')'       // function call
+simp ::= name                                // variable
+
+simp ::= { expr }                            // block
+
+====
+
+data Maybe = Some(_) | None
+
+let div = fn(a, b)
+    match b:
+        0: None
+        _: Some(a / b)
+
+let gcd = fn(a, b)
+    match b
+        0 : a
+        _ : gcd(b, a % b)
+
+gcd(10, 5)
