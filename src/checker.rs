@@ -199,7 +199,13 @@ impl TypeChecker {
 
     pub fn infer(&mut self, program: Program) -> Program {
         let constraints = self.infer_constraints(program.clone());
+        println!("Constraints:");
+        for c in &constraints {
+            println!("{}", c);
+        }
+
         let subst = unify(constraints);
+        println!("\nSubstitution: {}", subst);
         let program = apply_subst_program(&subst, program);
 
         program
@@ -250,9 +256,12 @@ impl TypeChecker {
                 env.extend(f.args.clone());
                 let (t_body, x_body) = self.infer_constraints_simp(env, &*f.body);
                 let t_args = f.args.iter().map(|(_, ty)| ty.clone()).collect();
-                let t_fn = Type::Fn(t_args, Box::new(t_body));
+                let t_ret = f.ret.clone();
+                let mut x_out = x_body;
+                x_out.push(TyConstraint(t_ret.clone(), t_body));
+                let t_fn = Type::Fn(t_args, Box::new(t_ret));
 
-                (t_fn, x_body)
+                (t_fn, x_out)
             }
             Match(simp, arms) => {
                 let (t_simp, x_simp) = self.infer_constraints_simp(env.clone(), simp);
