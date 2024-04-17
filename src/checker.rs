@@ -199,13 +199,13 @@ impl TypeChecker {
 
     pub fn infer(&mut self, program: Program) -> Program {
         let constraints = self.infer_constraints(program.clone());
-        println!("Constraints:");
-        for c in &constraints {
-            println!("{}", c);
-        }
+        // println!("Constraints:");
+        // for c in &constraints {
+        //     println!("{}", c);
+        // }
 
         let subst = unify(constraints);
-        println!("\nSubstitution: {}", subst);
+        // println!("\nSubstitution: {}", subst);
         let program = apply_subst_program(&subst, program);
 
         program
@@ -399,5 +399,9 @@ fn apply_subst_pat(subst: &TySubst, pat: Pattern) -> Pattern {
     match pat {
         Var(name, ty) => Var(name, subst.apply(ty)),
         Int(i) => Int(i),
+        Data(data, name, pats) => {
+            let new_pats = pats.iter().map(|p| apply_subst_pat(subst, p.clone())).collect();
+            Data(data, name, new_pats)
+        }
     }
 }

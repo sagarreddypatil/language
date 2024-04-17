@@ -9,20 +9,7 @@ use crate::parser::*;
 use crate::checker::*;
 
 fn main() {
-    let test_prog = "data Maybe = Some(Int) | None
-
-let div = fn(a, b)
-    match b {
-        0: None
-        _: Some(a / b)
-    }
-
-let gcd = fn(a, b) match b {
-    0 : a
-    _ : gcd(b, a % b)
-}
-
-gcd(10, 5)";
+    let test_prog = std::fs::read_to_string("prog.lang").unwrap();
 
     let mut scanner = Scanner::new(test_prog.to_string());
     scanner.tokenize();

@@ -7,7 +7,7 @@ pub struct Parser {
     position: usize,
 
     // map from type constructor to data type name
-    ty_cons: HashMap<Name, Name>,
+    ty_cons: HashMap<Name, DataDef>,
 }
 
 macro_rules! expect_fail {
@@ -81,7 +81,7 @@ impl Parser {
 
         for data_def in &program.data_defs {
             for cons in &data_def.cons {
-                self.ty_cons.insert(*cons.0, data_def.name);
+                self.ty_cons.insert(*cons.0, data_def.clone());
             }
         }
 
@@ -112,7 +112,18 @@ impl Parser {
 
     fn parse_pattern(&mut self) -> Pattern {
         match self.peek() {
-            TokenKind::Name(_) => Pattern::Var(self.expect_name(), fresh_tv()),
+            TokenKind::Name(_) => {
+                let name = self.expect_name();
+
+                if self.ty_cons.contains_key(&name) {
+                    let pats = self.parse_pat_list();
+                    let df = self.ty_cons.get(&name).unwrap().clone();
+                    Pattern::Data(df, name, pats)
+                } else {
+                    let ty = fresh_tv();
+                    Pattern::Var(name, ty)
+                }
+            },
             TokenKind::Number(n) => {
                 let n = *n;
                 self.accept();
@@ -120,6 +131,33 @@ impl Parser {
             },
             _ => expect_fail!("Pattern", self.peek_wpos()),
         }
+    }
+
+    fn parse_pat_list(&mut self) -> Vec<Pattern> {
+        let mut pats = Vec::new();
+        match self.peek() {
+            TokenKind::POpen => {
+                self.accept();
+                pats.push(self.parse_pattern());
+
+                loop {
+                    match self.peek() {
+                        TokenKind::Comma => {
+                            self.accept();
+                            pats.push(self.parse_pattern());
+                        },
+                        TokenKind::PClose => {
+                            self.accept();
+                            break;
+                        },
+                        _ => expect_fail!("',' or ')'", self.peek_wpos()),
+                    }
+                }
+            },
+            _ => {}
+        }
+
+        pats
     }
 
     fn parse_simp(&mut self) -> Simp {
@@ -234,8 +272,6 @@ impl Parser {
             if self.ty_cons.contains_key(&Name::from_string_ref(name)) => {
                 let name = self.expect_name();
                 let vals = self.parse_simp_list();
-
-                let tyname = self.ty_cons.get(&name).unwrap().clone();
 
                 Simp::Data(name, vals)
             },

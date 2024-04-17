@@ -1,0 +1,31 @@
+data Maybe = Some(Int) | None
+data Tree = Leaf(Int) | Node(Int, Tree, Tree)
+
+let div = fn(a, b)
+    match b {
+        0: None
+        _: Some(a / b)
+    }
+
+let gcd = fn(a, b) match b {
+    0 : a
+    _ : gcd(b, a % b)
+}
+
+let collatz = fn(n) match n {
+    1: 1
+    _: match n % 2 {
+        0: collatz(n / 2)
+        _: collatz(3 * n + 1)
+    }
+}
+
+let flip = fn(tree) match tree {
+    Leaf(x): Leaf(x)
+    Node(x, left, right): Node(x, flip(right), flip(left))
+}
+
+let mytree = Node(1, Node(2, Leaf(3), Leaf(4)), Leaf(5))
+let flipped = flip(mytree)
+flipped
+

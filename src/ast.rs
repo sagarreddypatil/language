@@ -88,6 +88,7 @@ pub struct Cons {
 pub enum Pattern {
     Var(Name, Type), // naive binding
     Int(i64), // literal
+    Data(DataDef, Name, Vec<Pattern>),
 
     // TODO: structural matching
 }
@@ -98,6 +99,7 @@ impl Pattern {
         match self {
             Var(name, ty) => vec![(*name, ty.clone())],
             Int(_) => vec![],
+            Data(_, _, pats) => pats.iter().flat_map(|pat| pat.bindings()).collect(),
         }
     }
 }
@@ -108,6 +110,7 @@ impl Pattern {
         match self {
             Var(_, ty) => ty.clone(),
             Int(_) => Type::Int,
+            Data(data, _, _) => Type::UserDef(data.name),
         }
     }
 }
@@ -128,7 +131,7 @@ pub enum Simp {
     // literals
     Int(i64),
     Unit,
-    Data(Name, Vec<Simp>), // type here for convenience
+    Data(Name, Vec<Simp>),
 }
 
 #[derive(Debug, Clone)]

@@ -71,6 +71,16 @@ impl fmt::Display for Pattern {
         match self {
             Var(name, ty) => write!(f, "({name}: {ty})"),
             Int(n) => write!(f, "{}", n),
+            Data(_, name, pats) => {
+                write!(f, "{}(", name)?;
+                for (i, pat) in pats.iter().enumerate() {
+                    write!(f, "{}", pat)?;
+                    if i < pats.len() - 1 {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, ")")
+            }
         }
     }
 }
@@ -142,7 +152,6 @@ impl fmt::Display for FnDef {
         };
         // indent body
         let body = format!("{}", self.body);
-        let body = body.replace("\n", "\n    ");
         let body = body.replace("}", "\n}");
 
         write!(f, ") -> {} {}", self.ret, body)
