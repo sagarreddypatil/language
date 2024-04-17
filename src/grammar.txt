@@ -9,23 +9,31 @@ otype ::= (mtype)?                           // optional type annotation
 cons ::= name                                // type constructor, no values
 cons ::= name '(' type (',' type)* ')'       // tagged values
 
-lit ::= <all inbuilt literals>               // char, bool, int, float
-                                             // list, string, tuple, unit
-
-lit ::= name                                 // data constructor no values
-lit ::= name '(' simp (',' simp)* ')'        // data constructor
-
 inst ::= 'data' name '=' (cons)('|' cons)*   // ADT
 alias ::= 'type' name '=' name               // type alias
 
 expr ::= let ptrn '=' simp (';'|'\n') expr   // binding
 expr ::= simp                                // idk man
 
-simp ::= fn([name otype ',']+) otype simp    // function/closure
+bop ::= '+' | '-' | '*' | '/' | '%'
+uop ::= '-' | '~'
+
+atom ::= <all inbuilt literals>              // char, bool, int, float
+                                             // list, string, tuple, unit
+
+atom ::= name                                // variable reference
+atom ::= atom '(' simp (',' simp)* ')'       // function call
+
+atom ::= name                                // data constructor no values
+atom ::= name '(' simp (',' simp)* ')'       // data constructor
+
+atom ::= '(' simp ')'                        // parens
+
+uatom ::= [uop] atom                         // unary operator application
+
+simp ::= uatom [bop simp]*                   // binary operator application
 simp ::= 'match' simp [ptrn ':' simp]+       // pattern matching
-simp ::= name '(' simp (',' simp)* ')'       // function call
-simp ::= name                                // variable
-simp ::= lit                                 // inline literal into simp
+simp ::= fn([name otype ',']+) otype simp    // lambda
 
 simp ::= { expr }                            // block
 
@@ -34,13 +42,14 @@ simp ::= { expr }                            // block
 data Maybe = Some(Int) | None
 
 let div = fn(a, b)
-    match b:
+    match b {
         0: None
         _: Some(a / b)
+    }
 
-let gcd = fn(a, b)
-    match b
-        0 : a
-        _ : gcd(b, a % b)
+let gcd = fn(a, b) match b {
+    0 : a
+    _ : gcd(b, a % b)
+}
 
 gcd(10, 5)

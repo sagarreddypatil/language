@@ -2,7 +2,7 @@ use phf::phf_map;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Token {
+pub enum TokenKind {
     // delimiters
     Colon,
     Comma,
@@ -26,70 +26,108 @@ pub enum Token {
     Name(String),
     Number(i64),
 
-    //
+    // end of file
     EOF,
 }
 
-impl fmt::Display for Token {
+#[derive(Debug)]
+pub struct Pos {
+    pub line: usize,
+    pub col: usize,
+}
+
+impl fmt::Display for Pos {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}:{}", self.line, self.col)
+    }
+}
+
+#[derive(Debug)]
+pub struct Token {
+    pub kind: TokenKind,
+    pub pos: Pos,
+}
+
+impl fmt::Display for TokenKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use TokenKind::*;
         match self {
-            Token::Colon => write!(f, ":"),
-            Token::Comma => write!(f, ","),
-            Token::Eq => write!(f, "="),
-            Token::Pipe => write!(f, "|"),
-            Token::POpen => write!(f, "("),
-            Token::PClose => write!(f, ")"),
-            Token::BOpen => write!(f, "{{"),
-            Token::BClose => write!(f, "}}"),
-            Token::Endl => write!(f, "\n"),
+            Colon => write!(f, ":"),
+            Comma => write!(f, ","),
+            Eq => write!(f, "="),
+            Pipe => write!(f, "|"),
+            POpen => write!(f, "("),
+            PClose => write!(f, ")"),
+            BOpen => write!(f, "{{"),
+            BClose => write!(f, "}}"),
+            Endl => write!(f, ";"),
 
-            Token::FnDef => write!(f, "fn"),
-            Token::Let => write!(f, "let "),
-            Token::Match => write!(f, "match "),
-            Token::DataDef => write!(f, "data "),
-            Token::TypeDef => write!(f, "type "),
-            Token::Arrow => write!(f, "->"),
+            FnDef => write!(f, "fn"),
+            Let => write!(f, "let"),
+            Match => write!(f, "match"),
+            DataDef => write!(f, "data"),
+            TypeDef => write!(f, "type"),
+            Arrow => write!(f, "->"),
 
-            Token::Name(s) => write!(f, "{}", s),
-            Token::Number(n) => write!(f, "{}", n),
+            Name(s) => write!(f, "{}", s),
+            Number(n) => write!(f, "{}", n),
 
-            Token::EOF => write!(f, ""),
+            EOF => write!(f, "<EOF>"),
         }
     }
 }
 
-pub struct Tokens<'a>(pub &'a Vec<Token>);
+#[derive(Debug)]
+pub struct Tokens {
+    pub list: Vec<Token>,
+}
 
-impl<'a> fmt::Display for Tokens<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl fmt::Display for Tokens {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut s = String::new();
-        for token in self.0 {
-            s.push_str(&format!("{}", token));
+
+        for (i, token) in self.list.iter().enumerate() {
+            s.push_str(&format!("{:03}: {}\n", i, token.kind));
         }
+
         write!(f, "{}", s)
     }
 }
 
-static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
-    "data" => Token::DataDef,
-    "type" => Token::TypeDef,
-    "let" => Token::Let,
-    "fn" => Token::FnDef,
-    "match" => Token::Match,
-    "->" => Token::Arrow,
+impl Tokens {
+    pub fn new() -> Self {
+        Self { list: Vec::new() }
+    }
+
+    pub fn push(&mut self, token: Token) {
+        use TokenKind::*;
+        match (self.list.last().map(|x| &x.kind), &token.kind) {
+            (Some(Endl), Endl) => return,
+            _ => self.list.push(token),
+        }
+    }
+}
+
+static KEYWORDS: phf::Map<&'static str, TokenKind> = phf_map! {
+    "data" => TokenKind::DataDef,
+    "type" => TokenKind::TypeDef,
+    "let" => TokenKind::Let,
+    "fn" => TokenKind::FnDef,
+    "match" => TokenKind::Match,
+    "->" => TokenKind::Arrow,
 };
 
-static DELIMS: phf::Map<char, Token> = phf_map! {
-    ':' => Token::Colon,
-    ',' => Token::Comma,
-    '=' => Token::Eq,
-    '|' => Token::Pipe,
-    '(' => Token::POpen,
-    ')' => Token::PClose,
-    '{' => Token::BOpen,
-    '}' => Token::BClose,
-    ';' => Token::Endl,
-    '\n' => Token::Endl,
+static DELIMS: phf::Map<char, TokenKind> = phf_map! {
+    ':' => TokenKind::Colon,
+    ',' => TokenKind::Comma,
+    '=' => TokenKind::Eq,
+    '|' => TokenKind::Pipe,
+    '(' => TokenKind::POpen,
+    ')' => TokenKind::PClose,
+    '{' => TokenKind::BOpen,
+    '}' => TokenKind::BClose,
+    ';' => TokenKind::Endl,
+    '\n' => TokenKind::Endl,
 };
 
 fn is_delim(c: char) -> bool {
@@ -108,7 +146,7 @@ pub struct Scanner {
     pub source: Vec<char>,
     position: usize,
 
-    pub tokens: Vec<Token>,
+    pub tokens: Tokens,
     buffer: String,
 }
 
@@ -118,36 +156,58 @@ impl Scanner {
             source: source.chars().collect(),
             position: 0,
 
-            tokens: Vec::new(),
+            tokens: Tokens::new(),
             buffer: String::new(),
         }
     }
 
-    pub fn peek(&self) -> Option<char> {
+    fn pos(&self) -> Pos {
+        let mut line = 1;
+        let mut col = 0;
+
+        for c in &self.source[..self.position] {
+            if *c == '\n' {
+                line += 1;
+                col = 0;
+            } else {
+                col += 1;
+            }
+        }
+
+        Pos { line, col }
+    }
+
+    fn push(&mut self, token: TokenKind) {
+        self.tokens.push(Token {
+            kind: token,
+            pos: self.pos(),
+        });
+    }
+
+    fn peek(&self) -> Option<char> {
         self.source.get(self.position).cloned()
     }
 
-    pub fn next(&mut self) -> char {
+    fn next(&mut self) -> char {
         let c = self.source[self.position];
         self.position += 1;
         c
     }
 
-    pub fn handle_word(&mut self) {
+    fn handle_word(&mut self) {
         if is_keyword(&self.buffer) {
-            self.tokens.push(KEYWORDS[&self.buffer].clone());
+            self.push(KEYWORDS[&self.buffer].clone());
         } else if is_numeric(self.buffer.as_str()) {
-            self.tokens
-                .push(Token::Number(self.buffer.parse().unwrap()));
+            self.push(TokenKind::Number(self.buffer.parse().unwrap()));
         } else {
-            self.tokens.push(Token::Name(self.buffer.clone()));
+            self.push(TokenKind::Name(self.buffer.clone()));
         }
     }
 
     pub fn tokenize(&mut self) {
         while let Some(c) = self.peek() {
             let mut flush = false;
-            let mut next: Option<Token> = None;
+            let mut next: Option<TokenKind> = None;
 
             if is_delim(c) {
                 flush = true;
@@ -164,17 +224,18 @@ impl Scanner {
             }
 
             if flush {
-                next.map(|t| self.tokens.push(t));
+                next.map(|t| self.push(t));
                 continue;
             }
 
             let next = self.next();
             self.buffer.push(next);
         }
+
         if !self.buffer.is_empty() {
             self.handle_word();
         }
 
-        self.tokens.push(Token::EOF);
+        self.push(TokenKind::EOF);
     }
 }

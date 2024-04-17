@@ -1,5 +1,49 @@
-#[derive(Debug, Eq, PartialEq, Clone, Copy)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
 pub struct Name(pub &'static str);
+
+impl Name {
+    pub fn from_string_ref(s: &String) -> Name {
+        Name(Box::leak(Box::new(s.clone())).as_str())
+    }
+}
+
+pub trait Op {
+    fn valid(&self) -> bool;
+    fn prec(&self) -> i32;
+    fn assoc(&self) -> i32;
+    fn unary(&self) -> bool;
+}
+
+impl Op for Name {
+    fn valid(&self) -> bool {
+        match self.0 {
+            "+" | "-" | "*" | "/" | "%" | "~" => true,
+            _ => false,
+        }
+    }
+
+    fn prec(&self) -> i32 {
+        match self.0 {
+            "+" | "-" => 1,
+            "*" | "/" | "%" => 2,
+            _ => 0,
+        }
+    }
+
+    fn assoc(&self) -> i32 {
+        match self.0 {
+            "+" | "-" | "*" | "/" | "%" => 1,
+            _ => 0,
+        }
+    }
+
+    fn unary(&self) -> bool {
+        match self.0 {
+            "-" | "~" => true,
+            _ => false,
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum Type {
@@ -31,12 +75,15 @@ pub struct Cons {
 
 #[derive(Debug)]
 pub enum Pattern {
-    Var(Name), // keep it simple for now
+    Var(Name), // naive binding
+    Int(i64), // literal
+
+    // TODO: structural matching
 }
 
 #[derive(Debug)]
 pub enum Expr {
-    Bind(Name, Pattern, Box<Expr>),
+    Bind(Pattern, Simp, Box<Expr>),
     Simp(Simp)
 }
 
@@ -44,7 +91,7 @@ pub enum Expr {
 pub enum Simp {
     FnDef(FnDef),
     Match(Box<Simp>, Vec<(Pattern, Simp)>),
-    FnCall(Name, Vec<Simp>),
+    FnCall(Box<Simp>, Vec<Simp>),
     Ref(Name),
 
     // literals
