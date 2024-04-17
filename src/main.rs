@@ -6,6 +6,7 @@ mod display_impls;
 
 use crate::tokenizer::*;
 use crate::parser::*;
+use crate::checker::*;
 
 fn main() {
     let test_prog = "data Maybe = Some(Int) | None
@@ -29,6 +30,8 @@ gcd(10, 5)";
 
     let mut parser = Parser::new(scanner.tokens.list);
     let program = parser.parse_program();
-
     println!("{}", program);
+
+    let substs = TypeChecker::new().infer(program);
+    println!("{}", substs);
 }

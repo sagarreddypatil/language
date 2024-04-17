@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
 pub struct Name(pub &'static str);
 
@@ -39,42 +41,46 @@ impl Op for Name {
 
     fn unary(&self) -> bool {
         match self.0 {
-            "-" | "~" => true,
+            // "-" | "~" => true,
+            "~" => true,
             _ => false,
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     Int,
     Unit,
     Fn(Vec<Type>, Box<Type>),
     UserDef(Name),
-    Var(usize), // unresolved type variable
-    None, // worry about it later
+    TyVar(usize), // unresolved type variable
 }
 
-pub trait Typed {
-    fn get_type(&self) -> Type;
+pub fn fresh_tv() -> Type {
+    static mut TVAR_COUNTER: usize = 0;
+    unsafe {
+        let ret = Type::TyVar(TVAR_COUNTER);
+        TVAR_COUNTER += 1;
+        ret
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DataDef {
     pub name: Name,
-    pub cons: Vec<Cons>,
+    // pub cons: Vec<Cons>,
+    pub cons: HashMap<Name, Cons>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TypeDef {
     pub name: Name,
     pub ty: Type,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Cons {
-    // ADT Constructor Definition
-    pub tag: Name,
     pub args: Vec<Type>,
 }
 
@@ -86,8 +92,18 @@ pub enum Pattern {
     // TODO: structural matching
 }
 
-impl Typed for Pattern {
-    fn get_type(&self) -> Type {
+impl Pattern {
+    pub fn bindings(&self) -> Vec<(Name, Type)> {
+        use Pattern::*;
+        match self {
+            Var(name, ty) => vec![(*name, ty.clone())],
+            Int(_) => vec![],
+        }
+    }
+}
+
+impl Pattern {
+    pub fn get_type(&self) -> Type {
         use Pattern::*;
         match self {
             Var(_, ty) => ty.clone(),
@@ -107,28 +123,12 @@ pub enum Simp {
     FnDef(FnDef),
     Match(Box<Simp>, Vec<(Pattern, Simp)>),
     FnCall(Box<Simp>, Vec<Simp>),
-    Ref(Name, Type),
+    Ref(Name),
 
     // literals
     Int(i64),
     Unit,
-    Data(Name, Vec<Simp>),
-}
-
-impl Typed for Simp {
-    fn get_type(&self) -> Type {
-        use Simp::*;
-        match self {
-            FnDef(f) => Type::Fn(f.args.iter().map(|(_, ty)| ty.clone()).collect(), Box::new(f.ret.clone())),
-            Match(_, _) => Type::None, // needs to be resolved
-            FnCall(fun, _) => fun.get_type().clone(),
-            Ref(_, ty) => ty.clone(),
-
-            Int(_) => Type::Int,
-            Unit => Type::Unit,
-            Data(name, _) => Type::UserDef(name.clone()),
-        }
-    }
+    Data(Name, Vec<Simp>), // type here for convenience
 }
 
 #[derive(Debug)]
@@ -141,6 +141,6 @@ pub struct FnDef {
 #[derive(Debug)]
 pub struct Program {
     pub data_defs: Vec<DataDef>,
-    pub type_defs: Vec<TypeDef>,
+    // pub type_defs: Vec<TypeDef>, // TODO: implement later, parser commented
     pub expr: Option<Expr>,
 }

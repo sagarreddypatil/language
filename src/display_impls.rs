@@ -24,8 +24,7 @@ impl fmt::Display for Type {
                 write!(f, ") -> {}", ret)
             }
             UserDef(name) => write!(f, "{}", name.0),
-            Var(i) => write!(f, "T{}", i),
-            None => write!(f, "_"),
+            TyVar(i) => write!(f, "T{}", i),
         }
     }
 
@@ -41,7 +40,7 @@ impl fmt::Display for DataDef {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "data {} = ", self.name.0)?;
         for (i, con) in self.cons.iter().enumerate() {
-            write!(f, "{}", con)?;
+            write!(f, "{}{}", con.0, con.1)?;
             if i < self.cons.len() - 1 {
                 write!(f, " | ")?;
             }
@@ -52,7 +51,6 @@ impl fmt::Display for DataDef {
 
 impl fmt::Display for Cons {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.tag)?;
         if !self.args.is_empty() {
             write!(f, "(")?;
             for (i, arg) in self.args.iter().enumerate() {
@@ -112,7 +110,7 @@ impl fmt::Display for Simp {
                 }
                 write!(f, ")")
             }
-            Ref(name, ty) => write!(f, "(({}): {})", name, ty),
+            Ref(name) => write!(f, "({})", name),
             Int(n) => write!(f, "{}", n),
             Unit => write!(f, "()"),
             Data(name, args) => {
@@ -156,9 +154,9 @@ impl fmt::Display for Program {
         for data_def in self.data_defs.iter() {
             write!(f, "{}\n", data_def)?;
         }
-        for type_def in self.type_defs.iter() {
-            write!(f, "{}\n", type_def)?;
-        }
+        // for type_def in self.type_defs.iter() {
+        //     write!(f, "{}\n", type_def)?;
+        // }
         if let Some(expr) = &self.expr {
             write!(f, "{}", expr)?;
         }

@@ -8,7 +8,6 @@ pub struct Parser {
 
     // map from type constructor to data type name
     ty_cons: HashMap<Name, Name>,
-    tvc: usize, // type variable counter
 }
 
 macro_rules! expect_fail {
@@ -24,13 +23,7 @@ impl Parser {
             position: 0,
 
             ty_cons: HashMap::new(),
-            tvc: 0,
         }
-    }
-
-    fn fresh_tv(&mut self) -> Type {
-        self.tvc += 1;
-        Type::Var(self.tvc)
     }
 
     fn end(&self) -> bool {
@@ -73,7 +66,7 @@ impl Parser {
     pub fn parse_program(&mut self) -> Program {
         let mut program = Program {
             data_defs: Vec::new(),
-            type_defs: Vec::new(),
+            // type_defs: Vec::new(),
             expr: None,
         };
 
@@ -81,14 +74,14 @@ impl Parser {
             match self.peek() {
                 TokenKind::Endl => { self.accept(); },
                 TokenKind::DataDef => program.data_defs.push(self.parse_data_ref()),
-                TokenKind::TypeDef => program.type_defs.push(self.parse_type_def()),
+                // TokenKind::TypeDef => program.type_defs.push(self.parse_type_def()),
                 _ => break,
             }
         }
 
         for data_def in &program.data_defs {
             for cons in &data_def.cons {
-                self.ty_cons.insert(cons.tag, data_def.name);
+                self.ty_cons.insert(*cons.0, data_def.name);
             }
         }
 
@@ -119,7 +112,7 @@ impl Parser {
 
     fn parse_pattern(&mut self) -> Pattern {
         match self.peek() {
-            TokenKind::Name(_) => Pattern::Var(self.expect_name(), self.fresh_tv()),
+            TokenKind::Name(_) => Pattern::Var(self.expect_name(), fresh_tv()),
             TokenKind::Number(n) => {
                 let n = *n;
                 self.accept();
@@ -148,12 +141,12 @@ impl Parser {
         // parse name of args, comma separated
         let mut args = Vec::new();
         if self.peek() != &TokenKind::PClose {
-            args.push((self.expect_name(), self.fresh_tv()));
+            args.push((self.expect_name(), fresh_tv()));
             loop {
                 match self.peek() {
                     TokenKind::Comma => {
                         self.accept();
-                        args.push((self.expect_name(), self.fresh_tv()));
+                        args.push((self.expect_name(), fresh_tv()));
                     },
                     TokenKind::PClose => {
                         self.accept();
@@ -167,7 +160,7 @@ impl Parser {
         Simp::FnDef(FnDef {
             args,
             body: Box::new(self.parse_simp()),
-            ret: self.fresh_tv(),
+            ret: fresh_tv(),
         })
 
     }
@@ -190,7 +183,7 @@ impl Parser {
             let new_min = name.prec() + name.assoc();
             let rhs = self.parse_simple_ops(new_min);
 
-            let fname = Box::new(Simp::Ref(name, Type::None));
+            let fname = Box::new(Simp::Ref(name));
 
             lhs = Simp::FnCall(fname, vec![lhs, rhs]);
         }
@@ -214,7 +207,7 @@ impl Parser {
         match self.peek() {
             TokenKind::Name(name) if Name::from_string_ref(name).unary() => {
                 let name = self.expect_name();
-                let name = Simp::Ref(name, Type::None);
+                let name = Simp::Ref(name);
 
                 let rest = self.parse_tight();
                 Simp::FnCall(Box::new(name), vec![rest])
@@ -242,11 +235,13 @@ impl Parser {
                 let name = self.expect_name();
                 let vals = self.parse_simp_list();
 
+                let tyname = self.ty_cons.get(&name).unwrap().clone();
+
                 Simp::Data(name, vals)
             },
             TokenKind::Name(_) => {
                 let name = self.expect_name();
-                Simp::Ref(name, Type::None)
+                Simp::Ref(name)
             },
             TokenKind::Number(n) => {
                 let n = *n;
@@ -313,14 +308,17 @@ impl Parser {
         let name = self.expect_name();
         self.expect(TokenKind::Eq);
 
-        let mut cons = Vec::new();
-        cons.push(self.parse_cons());
+        let mut cons = HashMap::new();
+
+        let con = self.parse_cons();
+        cons.insert(con.0, con.1);
 
         loop {
             match self.peek() {
                 TokenKind::Pipe => {
                     self.accept();
-                    cons.push(self.parse_cons());
+                    let con = self.parse_cons();
+                    cons.insert(con.0, con.1);
                 },
                 TokenKind::Endl => { self.accept(); },
                 _ => break,
@@ -333,30 +331,27 @@ impl Parser {
         }
     }
 
-    fn parse_cons(&mut self) -> Cons {
+    fn parse_cons(&mut self) -> (Name, Cons) {
         let tag = self.expect_name();
         let args = match self.peek() {
             TokenKind::POpen => self.parse_type_list(),
             _ => Vec::new(),
         };
 
-        Cons {
-            tag,
-            args,
-        }
+        (tag, Cons {args})
     }
 
-    fn parse_type_def(&mut self) -> TypeDef {
-        self.expect(TokenKind::TypeDef);
-        let name = self.expect_name();
-        self.expect(TokenKind::Eq);
-        let ty = self.parse_type();
+    // fn parse_type_def(&mut self) -> TypeDef {
+    //     self.expect(TokenKind::TypeDef);
+    //     let name = self.expect_name();
+    //     self.expect(TokenKind::Eq);
+    //     let ty = self.parse_type();
 
-        TypeDef {
-            name,
-            ty,
-        }
-    }
+    //     TypeDef {
+    //         name,
+    //         ty,
+    //     }
+    // }
 
     fn parse_type(&mut self) -> Type {
         let mut lhs = self.parse_type_list();
