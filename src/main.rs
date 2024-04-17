@@ -30,8 +30,10 @@ gcd(10, 5)";
 
     let mut parser = Parser::new(scanner.tokens.list);
     let program = parser.parse_program();
-    println!("{}", program);
+    println!("{}", &program);
 
-    let substs = TypeChecker::new().infer(program);
-    println!("{}", substs);
+    println!("----- After Inference -----");
+
+    let program = TypeChecker::new().infer(program);
+    println!("{}", program);
 }

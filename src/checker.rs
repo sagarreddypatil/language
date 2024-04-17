@@ -133,7 +133,6 @@ fn ty_in(n: Type, m: Type) -> bool {
 }
 
 
-#[allow(dead_code)]
 fn unify(constraints: TyConstraints) -> TySubst {
     if constraints.is_empty() {
         return TySubst::new();
@@ -159,7 +158,7 @@ fn unify(constraints: TyConstraints) -> TySubst {
             unify(new_constraints)
         }
         (TyVar(n), t) => {
-            if (ty_in(TyVar(*n), t.clone())) {
+            if ty_in(TyVar(*n), t.clone()) {
                 panic!("Type error: recursive type");
             }
 
@@ -171,7 +170,7 @@ fn unify(constraints: TyConstraints) -> TySubst {
             nsubst
         }
         (s, TyVar(n)) => {
-            if (ty_in(TyVar(*n), s.clone())) {
+            if ty_in(TyVar(*n), s.clone()) {
                 panic!("Type error: recursive type");
             }
 
@@ -198,10 +197,12 @@ impl TypeChecker {
         }
     }
 
-    pub fn infer(&mut self, program: Program) -> TySubst {
-        let constraints = self.infer_constraints(program);
+    pub fn infer(&mut self, program: Program) -> Program {
+        let constraints = self.infer_constraints(program.clone());
         let subst = unify(constraints);
-        subst
+        let program = apply_subst_program(&subst, program);
+
+        program
     }
 
     fn infer_constraints(&mut self, program: Program) -> TyConstraints {
@@ -326,7 +327,16 @@ impl TypeChecker {
     }
 }
 
-pub fn apply_subst_expr(subst: &TySubst, tree: Expr) -> Expr {
+fn apply_subst_program(subst: &TySubst, program: Program) -> Program {
+    let new_expr = program.expr.as_ref().map(|e| apply_subst_expr(subst, e.clone()));
+
+    Program {
+        expr: new_expr,
+        ..program
+    }
+}
+
+fn apply_subst_expr(subst: &TySubst, expr: Expr) -> Expr {
     use Expr::*;
     match expr {
         Bind(pat, simp, body) => {
@@ -340,8 +350,40 @@ pub fn apply_subst_expr(subst: &TySubst, tree: Expr) -> Expr {
 }
 
 fn apply_subst_simp(subst: &TySubst, simp: Simp) -> Simp {
-    unimplemented!("apply_subst_simp")
+    match simp {
+        Simp::FnDef(f) => {
+            let new_args = f.args.iter().map(|(n, t)| (*n, subst.apply(t.clone()))).collect();
+            let new_body = apply_subst_simp(subst, *f.body);
+            let new_ret = subst.apply(f.ret.clone());
+            Simp::FnDef(FnDef {
+                args: new_args,
+                body: Box::new(new_body),
+                ret: new_ret,
+            })
+        }
+        Simp::Match(s, arms) => {
+            let new_s = apply_subst_simp(subst, *s);
+            let new_arms = arms
+                .iter().cloned()
+                .map(|(pat, simp)| (apply_subst_pat(subst, pat), apply_subst_simp(subst, simp)))
+                .collect();
+            Simp::Match(Box::new(new_s), new_arms)
+        }
+        Simp::FnCall(s, args) => {
+            let new_s = apply_subst_simp(subst, *s);
+            let new_args = args.iter().cloned().map(|a| apply_subst_simp(subst, a)).collect();
+            Simp::FnCall(Box::new(new_s), new_args)
+        }
+        Simp::Ref(n) => Simp::Ref(n),
+        Simp::Int(i) => Simp::Int(i),
+        Simp::Unit => Simp::Unit,
+        Simp::Data(n, args) => {
+            let new_args = args.iter().cloned().map(|a| apply_subst_simp(subst, a)).collect();
+            Simp::Data(n, new_args)
+        }
+    }
 }
+
 
 fn apply_subst_pat(subst: &TySubst, pat: Pattern) -> Pattern {
     use Pattern::*;

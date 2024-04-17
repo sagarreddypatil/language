@@ -84,7 +84,7 @@ pub struct Cons {
     pub args: Vec<Type>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Pattern {
     Var(Name, Type), // naive binding
     Int(i64), // literal
@@ -112,13 +112,13 @@ impl Pattern {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     Bind(Pattern, Simp, Box<Expr>),
     Simp(Simp)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Simp {
     FnDef(FnDef),
     Match(Box<Simp>, Vec<(Pattern, Simp)>),
@@ -131,14 +131,14 @@ pub enum Simp {
     Data(Name, Vec<Simp>), // type here for convenience
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FnDef {
     pub args: Vec<(Name, Type)>,
     pub body: Box<Simp>,
     pub ret: Type,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Program {
     pub data_defs: Vec<DataDef>,
     // pub type_defs: Vec<TypeDef>, // TODO: implement later, parser commented
