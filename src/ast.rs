@@ -52,6 +52,11 @@ pub enum Type {
     Fn(Vec<Type>, Box<Type>),
     UserDef(Name),
     Var(usize), // unresolved type variable
+    None, // worry about it later
+}
+
+pub trait Typed {
+    fn get_type(&self) -> Type;
 }
 
 #[derive(Debug)]
@@ -75,10 +80,20 @@ pub struct Cons {
 
 #[derive(Debug)]
 pub enum Pattern {
-    Var(Name), // naive binding
+    Var(Name, Type), // naive binding
     Int(i64), // literal
 
     // TODO: structural matching
+}
+
+impl Typed for Pattern {
+    fn get_type(&self) -> Type {
+        use Pattern::*;
+        match self {
+            Var(_, ty) => ty.clone(),
+            Int(_) => Type::Int,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -92,12 +107,28 @@ pub enum Simp {
     FnDef(FnDef),
     Match(Box<Simp>, Vec<(Pattern, Simp)>),
     FnCall(Box<Simp>, Vec<Simp>),
-    Ref(Name),
+    Ref(Name, Type),
 
     // literals
     Int(i64),
     Unit,
     Data(Name, Vec<Simp>),
+}
+
+impl Typed for Simp {
+    fn get_type(&self) -> Type {
+        use Simp::*;
+        match self {
+            FnDef(f) => Type::Fn(f.args.iter().map(|(_, ty)| ty.clone()).collect(), Box::new(f.ret.clone())),
+            Match(_, _) => Type::None, // needs to be resolved
+            FnCall(fun, _) => fun.get_type().clone(),
+            Ref(_, ty) => ty.clone(),
+
+            Int(_) => Type::Int,
+            Unit => Type::Unit,
+            Data(name, _) => Type::UserDef(name.clone()),
+        }
+    }
 }
 
 #[derive(Debug)]

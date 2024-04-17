@@ -98,9 +98,7 @@ impl Parser {
 
     fn parse_expr(&mut self) -> Expr {
         match self.peek() {
-            TokenKind::Let => {
-                self.parse_let()
-            },
+            TokenKind::Let => self.parse_let(),
             _ => Expr::Simp(self.parse_simp()),
         }
     }
@@ -108,17 +106,20 @@ impl Parser {
     fn parse_let(&mut self) -> Expr {
         self.expect(TokenKind::Let);
         let pattern = self.parse_pattern();
+
         self.expect(TokenKind::Eq);
         let rhs = self.parse_simp();
+
         self.expect(TokenKind::Endl);
 
         let body = self.parse_expr();
+
         Expr::Bind(pattern, rhs, Box::new(body))
     }
 
     fn parse_pattern(&mut self) -> Pattern {
         match self.peek() {
-            TokenKind::Name(_) => Pattern::Var(self.expect_name()),
+            TokenKind::Name(_) => Pattern::Var(self.expect_name(), self.fresh_tv()),
             TokenKind::Number(n) => {
                 let n = *n;
                 self.accept();
@@ -189,7 +190,9 @@ impl Parser {
             let new_min = name.prec() + name.assoc();
             let rhs = self.parse_simple_ops(new_min);
 
-            lhs = Simp::FnCall(Box::new(Simp::Ref(name)), vec![lhs, rhs]);
+            let fname = Box::new(Simp::Ref(name, Type::None));
+
+            lhs = Simp::FnCall(fname, vec![lhs, rhs]);
         }
 
         lhs
@@ -211,7 +214,7 @@ impl Parser {
         match self.peek() {
             TokenKind::Name(name) if Name::from_string_ref(name).unary() => {
                 let name = self.expect_name();
-                let name = Simp::Ref(name);
+                let name = Simp::Ref(name, Type::None);
 
                 let rest = self.parse_tight();
                 Simp::FnCall(Box::new(name), vec![rest])
@@ -243,7 +246,7 @@ impl Parser {
             },
             TokenKind::Name(_) => {
                 let name = self.expect_name();
-                Simp::Ref(name)
+                Simp::Ref(name, Type::None)
             },
             TokenKind::Number(n) => {
                 let n = *n;

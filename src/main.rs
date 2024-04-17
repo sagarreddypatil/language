@@ -1,6 +1,8 @@
 mod tokenizer;
 mod parser;
+mod checker;
 mod ast;
+mod display_impls;
 
 use crate::tokenizer::*;
 use crate::parser::*;
@@ -28,5 +30,5 @@ gcd(10, 5)";
     let mut parser = Parser::new(scanner.tokens.list);
     let program = parser.parse_program();
 
-    println!("{:?}", program);
+    println!("{}", program);
 }
