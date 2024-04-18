@@ -89,6 +89,16 @@ impl Parser {
         program
     }
 
+    fn parse_otype(&mut self) -> Type {
+        match self.peek() {
+            TokenKind::Colon => {
+                self.accept();
+                self.parse_type()
+            },
+            _ => fresh_tv(),
+        }
+    }
+
     fn parse_expr(&mut self) -> Expr {
         match self.peek() {
             TokenKind::Let => self.parse_let(),
@@ -120,7 +130,7 @@ impl Parser {
                     let df = self.ty_cons.get(&name).unwrap().clone();
                     Pattern::Data(df, name, pats)
                 } else {
-                    let ty = fresh_tv();
+                    let ty = self.parse_otype();
                     Pattern::Var(name, ty)
                 }
             },
@@ -179,12 +189,12 @@ impl Parser {
         // parse name of args, comma separated
         let mut args = Vec::new();
         if self.peek() != &TokenKind::PClose {
-            args.push((self.expect_name(), fresh_tv()));
+            args.push((self.expect_name(), self.parse_otype()));
             loop {
                 match self.peek() {
                     TokenKind::Comma => {
                         self.accept();
-                        args.push((self.expect_name(), fresh_tv()));
+                        args.push((self.expect_name(), self.parse_otype()));
                     },
                     TokenKind::PClose => {
                         self.accept();
@@ -195,10 +205,13 @@ impl Parser {
             }
         }
 
+        let ret = self.parse_otype();
+        self.expect(TokenKind::Eq);
+
         Simp::FnDef(FnDef {
             args,
             body: Box::new(self.parse_simp()),
-            ret: fresh_tv(),
+            ret,
         })
 
     }
@@ -329,7 +342,7 @@ impl Parser {
                 TokenKind::BClose => { self.accept(); break; },
                 _ => {
                     let pattern = self.parse_pattern();
-                    self.expect(TokenKind::Colon);
+                    self.expect(TokenKind::Eq);
                     let simp = self.parse_simp();
                     cases.push((pattern, simp));
                 },
