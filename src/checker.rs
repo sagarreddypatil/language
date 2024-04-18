@@ -90,6 +90,7 @@ impl TyEnv {
                 (Name("/"), int_infix_op.clone()),
                 (Name("%"), int_infix_op.clone()),
                 (Name("~"), int_unary_op.clone()),
+                (Name("println"), Type::Fn(vec![Type::Int], Box::new(Type::Unit))),
             ]),
         }
     }
@@ -159,7 +160,7 @@ fn unify(constraints: TyConstraints) -> TySubst {
         }
         (TyVar(n), t) => {
             if ty_in(TyVar(*n), t.clone()) {
-                panic!("Type error: recursive type");
+                panic!("Type error: recursive type, T{} and {}", n, t);
             }
 
             let subst = TySubst::singleton(*n, t.clone());
@@ -171,7 +172,7 @@ fn unify(constraints: TyConstraints) -> TySubst {
         }
         (s, TyVar(n)) => {
             if ty_in(TyVar(*n), s.clone()) {
-                panic!("Type error: recursive type");
+                panic!("Type error: recursive type, T{} and {}", n, s);
             }
 
             let subst = TySubst::singleton(*n, s.clone());
@@ -306,6 +307,7 @@ impl TypeChecker {
 
                 (t_out, x_out)
             }
+            Block(expr) => self.infer_constraints_expr(env, expr),
             Ref(name) => (env.get(name), vec![]),
             Int(_) => (Type::Int, vec![]),
             Unit => (Type::Unit, vec![]),
@@ -383,6 +385,7 @@ fn apply_subst_simp(subst: &TySubst, simp: Simp) -> Simp {
             let new_args = args.iter().cloned().map(|a| apply_subst_simp(subst, a)).collect();
             Simp::FnCall(Box::new(new_s), new_args)
         }
+        Simp::Block(e) => Simp::Block(Box::new(apply_subst_expr(subst, *e))),
         Simp::Ref(n) => Simp::Ref(n),
         Simp::Int(i) => Simp::Int(i),
         Simp::Unit => Simp::Unit,

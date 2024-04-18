@@ -126,6 +126,7 @@ pub enum Simp {
     FnDef(FnDef),
     Match(Box<Simp>, Vec<(Pattern, Simp)>),
     FnCall(Box<Simp>, Vec<Simp>),
+    Block(Box<Expr>),
     Ref(Name),
 
     // literals

@@ -120,6 +120,7 @@ impl fmt::Display for Simp {
                 }
                 write!(f, ")")
             }
+            Block(expr) => write!(f, "{{\n{}\n}}", expr),
             Ref(name) => write!(f, "({})", name),
             Int(n) => write!(f, "{}", n),
             Unit => write!(f, "()"),

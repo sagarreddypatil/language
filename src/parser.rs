@@ -12,7 +12,12 @@ pub struct Parser {
 
 macro_rules! expect_fail {
     ($expected:expr, $found:expr) => {
-        panic!("Expected {:?}, found {:?} at {}", $expected, $found.kind, $found.pos)
+        if $found.kind == TokenKind::EOF {
+            panic!("Unexpected EOF, expected {:?}", $expected)
+        }
+        else {
+            panic!("Expected {:?}, found {:?} at {}", $expected, $found.kind, $found.pos)
+        }
     };
 }
 
@@ -100,7 +105,12 @@ impl Parser {
     }
 
     fn parse_expr(&mut self) -> Expr {
+        println!("Parsing expr, token is {:?}", self.peek());
         match self.peek() {
+            TokenKind::Endl => {
+                self.accept();
+                self.parse_expr()
+            },
             TokenKind::Let => self.parse_let(),
             _ => Expr::Simp(self.parse_simp()),
         }
@@ -178,6 +188,17 @@ impl Parser {
             },
             TokenKind::Match => self.parse_match(),
             TokenKind::FnDef => self.parse_fndef(),
+            TokenKind::BOpen => {
+                self.accept();
+                let expr = self.parse_expr();
+
+                if self.peek() == &TokenKind::Endl {
+                    self.accept();
+                }
+                self.expect(TokenKind::BClose);
+
+                Simp::Block(Box::new(expr))
+            },
             _ => self.parse_simple_ops(0),
         }
     }
@@ -276,6 +297,10 @@ impl Parser {
                     Simp::Unit
                 } else {
                     let simp = self.parse_simp();
+
+                    if self.peek() == &TokenKind::Endl {
+                        self.accept();
+                    }
                     self.expect(TokenKind::PClose);
 
                     simp
@@ -319,6 +344,7 @@ impl Parser {
                             self.accept();
                             break;
                         },
+                        TokenKind::Endl => { self.accept(); },
                         _ => expect_fail!("',' or ')'", token),
                     }
                 }
