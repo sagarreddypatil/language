@@ -247,13 +247,14 @@ impl TypeChecker {
         match exp {
             Bind(pat, simp, body) => {
                 let bindings = pat.bindings();
-                let t_pat = pat.get_type();
+                let (t_pat, x_pat) = self.infer_constraints_pat(env.clone(), pat);
                 env.extend(bindings);
 
                 let (t_rhs, x_rhs) = self.infer_constraints_simp(env.clone(), simp);
                 let (t_body, x_body) = self.infer_constraints_expr(env.clone(), body);
 
                 let mut x = vec![];
+                x.extend(x_pat);
                 x.extend(x_rhs);
                 x.extend(x_body);
                 x.push(TyConstraint(t_pat, t_rhs));
@@ -261,6 +262,29 @@ impl TypeChecker {
                 (t_body, x)
             }
             Simp(simp) => self.infer_constraints_simp(env, simp),
+        }
+    }
+
+    fn infer_constraints_pat(&mut self, env: TyEnv, pat: &Pattern) -> (Type, TyConstraints) {
+        use Pattern::*;
+        match pat {
+            Var(_, ty) => (ty.clone(), vec![]),
+            Int(_) => (Type::Int, vec![]),
+            Bool(_) => (Type::Bool, vec![]),
+            Data(datadef, name, pats) => {
+                let cons = datadef.cons.get(name).unwrap();
+                let mut x_out = vec![];
+                let mut t_args = vec![];
+
+                for (pat, con) in pats.iter().zip(cons.args.iter()) {
+                    let (t_pat, x_pat) = self.infer_constraints_pat(env.clone(), pat);
+                    x_out.extend(x_pat);
+                    t_args.push(t_pat.clone());
+                    x_out.push(TyConstraint(t_pat, con.clone()));
+                }
+
+                (Type::UserDef(datadef.name), x_out)
+            }
         }
     }
 
@@ -285,7 +309,8 @@ impl TypeChecker {
                 let mut t_arms = vec![];
 
                 for (pat, simp) in arms {
-                    let t_pat = pat.get_type();
+                    let (t_pat, x_pat) = self.infer_constraints_pat(env.clone(), pat);
+                    x_out.extend(x_pat);
                     x_out.push(TyConstraint(t_simp.clone(), t_pat.clone()));
 
                     let mut env_arm = env.clone();
