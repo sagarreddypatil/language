@@ -214,20 +214,20 @@ impl TypeChecker {
     }
 
     pub fn infer(&mut self, program: Program) -> Program {
-        let constraints = self.infer_constraints(&program);
-        // println!("Constraints:");
-        // for c in &constraints {
-        //     println!("{}", c);
-        // }
+        let (prog_ty, constraints) = self.infer_constraints(&program);
 
         let subst = unify(constraints);
-        // println!("\nSubstitution: {}", subst);
         let program = apply_subst_program(&subst, program);
+        let prog_ty = subst.apply(prog_ty);
+
+        if let Type::TyVar(_) = prog_ty {
+            panic!("Type error: final type is unresolved");
+        }
 
         program
     }
 
-    fn infer_constraints(&mut self, program: &Program) -> TyConstraints {
+    fn infer_constraints(&mut self, program: &Program) -> (Type, TyConstraints) {
         self.cons_datadef = program
             .data_defs
             .iter()
@@ -239,8 +239,7 @@ impl TypeChecker {
             });
 
         let expr = program.expr.as_ref().unwrap();
-        let (_, x) = self.infer_constraints_expr(TyEnv::new(), expr);
-        x
+        self.infer_constraints_expr(TyEnv::new(), expr)
     }
 
     fn infer_constraints_expr(&mut self, mut env: TyEnv, exp: &Expr) -> (Type, TyConstraints) {
