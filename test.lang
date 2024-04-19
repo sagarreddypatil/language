@@ -1,0 +1,9 @@
+data Pair = Pair(Int, Int)
+
+let never = fn(x) = match x > 0 {
+    true = never(x - 1)
+    false = 0
+}
+
+let Pair(x: Bool, y) = Pair(1, 2)
+x

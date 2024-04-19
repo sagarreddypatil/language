@@ -44,7 +44,7 @@ let reverse = fn(list) = {
 
 let never = fn(x) = match x > 0 {
     true = never(x - 1)
-    false = never(x + 1)
+    false = 0
 }
 
 let mylist = Cons(1, Cons(2, Cons(3, Cons(4, Cons(5, Nil)))))
@@ -52,6 +52,6 @@ let reversed = reverse(mylist)
 
 let Pair(x, y) = Pair(10, never(123))
 
-// x
-reversed
+x
+// reversed
 // true
