@@ -77,7 +77,6 @@ pub fn fresh_tv() -> Type {
 #[derive(Debug, Clone)]
 pub struct DataDef {
     pub name: Name,
-    // pub cons: Vec<Cons>,
     pub cons: HashMap<Name, Cons>,
 }
 
