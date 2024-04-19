@@ -194,7 +194,13 @@ fn eval_expr(env: Env, expr: &Expr) -> Value {
     use Expr::*;
     match expr {
         Bind(pat, rhs, body) => {
+            let free_body = free_vars_expr(body);
             let bound_names = bound_names_pat(pat);
+
+            if bound_names.iter().all(|name| !free_body.contains(name)) {
+                return eval_expr(env, body);
+            }
+
             let env = bound_names
                 .iter()
                 .fold(env, |nenv, name| nenv.bind_late(name.clone()));
@@ -203,7 +209,6 @@ fn eval_expr(env: Env, expr: &Expr) -> Value {
             let nenv = eval_pattern_match(&env, pat, &value)
                 .unwrap_or_else(|| panic!("Pattern match failed: {:?} = {:?}", pat, value));
 
-            // println!("nenv: {}", nenv);
             eval_expr(nenv, body)
         }
         Simp(s) => eval_simp(env, s),
