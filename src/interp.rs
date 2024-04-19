@@ -1,4 +1,5 @@
 use crate::ast::*;
+use crate::builtins::*;
 use core::fmt;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
@@ -7,6 +8,7 @@ type BuiltInFn = fn(Vec<Value>) -> Value;
 #[derive(Debug, Clone)]
 pub enum Value {
     Int(i64),
+    Bool(bool),
     Unit,
     Data(Name, Vec<Value>),
     Closure(Env, FnDef),
@@ -18,6 +20,7 @@ impl fmt::Display for Value {
         use Value::*;
         match self {
             Int(n) => write!(f, "{}", n),
+            Bool(b) => write!(f, "{}", b),
             Unit => write!(f, "()"),
             Data(name, args) => {
                 write!(f, "{}(", name)?;
@@ -33,41 +36,6 @@ impl fmt::Display for Value {
             BuiltIn(_) => write!(f, "<builtin>"),
         }
     }
-}
-
-macro_rules! infix_fn {
-    ($name:ident, $op:tt) => {
-        fn $name(args: Vec<Value>) -> Value {
-            match args.as_slice() {
-                [Value::Int(a), Value::Int(b)] => Value::Int(a $op b),
-                _ => panic!("Invalid arguments to {}: {:?}", stringify!($name), args),
-            }
-        }
-    };
-}
-
-macro_rules! unary_fn {
-    ($name:ident, $op:tt) => {
-        fn $name(args: Vec<Value>) -> Value {
-            match args.as_slice() {
-                [Value::Int(a)] => Value::Int($op a),
-                _ => panic!("Invalid arguments to {}: {:?}", stringify!($name), args),
-            }
-        }
-    };
-}
-
-infix_fn!(add, +);
-infix_fn!(sub, -);
-infix_fn!(mul, *);
-infix_fn!(div, /);
-infix_fn!(mod_, %);
-unary_fn!(bnot, !);
-
-fn builtin_println(args: Vec<Value>) -> Value {
-    assert!(args.len() == 1);
-    println!("{}", args[0]);
-    Value::Unit
 }
 
 #[derive(Debug, Clone)]
@@ -100,6 +68,15 @@ impl Env {
                 (Name("/"), Rc::new(RefCell::new(Some(Value::BuiltIn(div))))),
                 (Name("%"), Rc::new(RefCell::new(Some(Value::BuiltIn(mod_))))),
                 (Name("~"), Rc::new(RefCell::new(Some(Value::BuiltIn(bnot))))),
+                (Name("=="), Rc::new(RefCell::new(Some(Value::BuiltIn(eq))))),
+                (Name("!="), Rc::new(RefCell::new(Some(Value::BuiltIn(neq))))),
+                (Name("<"), Rc::new(RefCell::new(Some(Value::BuiltIn(lt))))),
+                (Name(">"), Rc::new(RefCell::new(Some(Value::BuiltIn(gt))))),
+                (Name("<="), Rc::new(RefCell::new(Some(Value::BuiltIn(le))))),
+                (Name(">="), Rc::new(RefCell::new(Some(Value::BuiltIn(ge))))),
+                (Name("&&"), Rc::new(RefCell::new(Some(Value::BuiltIn(and))))),
+                (Name("||"), Rc::new(RefCell::new(Some(Value::BuiltIn(or))))),
+                (Name("!"), Rc::new(RefCell::new(Some(Value::BuiltIn(not))))),
                 (Name("println"), Rc::new(RefCell::new(Some(Value::BuiltIn(builtin_println))))),
             ]),
         }
@@ -199,7 +176,7 @@ fn free_vars_simp(simp: &Simp) -> Vec<Name> {
         Block(expr) => free_vars_expr(expr),
         Ref(name) => vec![name.clone()],
         Data(_, args) => args.into_iter().flat_map(free_vars_simp).collect(),
-        Int(_) | Unit => vec![],
+        Int(_) | Bool(_) | Unit => vec![],
     }
 }
 
@@ -289,6 +266,7 @@ fn eval_simp(env: Env, simp: &Simp) -> Value {
             .unwrap_or_else(|| panic!("Uninitialized late binding: {}", name))
             .clone(),
         Int(n) => Value::Int(*n),
+        Bool(b) => Value::Bool(*b),
         Unit => Value::Unit,
         Data(name, args) => Value::Data(
             name.clone(),
@@ -302,6 +280,10 @@ fn eval_pattern_match(env: &Env, pat: &Pattern, value: &Value) -> Option<Env> {
         Pattern::Var(name, _) => Some(env.clone().bind(name.clone(), value.clone())),
         Pattern::Int(n) => match value {
             Value::Int(m) if n == m => Some(env.clone()),
+            _ => None,
+        },
+        Pattern::Bool(b) => match value {
+            Value::Bool(c) if b == c => Some(env.clone()),
             _ => None,
         },
         Pattern::Data(_, ltag, pats) => match value {

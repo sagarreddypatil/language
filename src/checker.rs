@@ -81,6 +81,9 @@ impl TyEnv {
     fn new() -> Self {
         let int_infix_op: Type = Type::Fn(vec![Type::Int, Type::Int], Box::new(Type::Int));
         let int_unary_op: Type = Type::Fn(vec![Type::Int], Box::new(Type::Int));
+        let int_bool_op: Type = Type::Fn(vec![Type::Int, Type::Int], Box::new(Type::Bool));
+        let bool_bool_op: Type = Type::Fn(vec![Type::Bool, Type::Bool], Box::new(Type::Bool));
+        let bool_unary_op: Type = Type::Fn(vec![Type::Bool], Box::new(Type::Bool));
 
         TyEnv {
             env: HashMap::from([
@@ -90,6 +93,18 @@ impl TyEnv {
                 (Name("/"), int_infix_op.clone()),
                 (Name("%"), int_infix_op.clone()),
                 (Name("~"), int_unary_op.clone()),
+
+                (Name("=="), int_bool_op.clone()),
+                (Name("!="), int_bool_op.clone()),
+                (Name("<"), int_bool_op.clone()),
+                (Name(">"), int_bool_op.clone()),
+                (Name("<="), int_bool_op.clone()),
+                (Name(">="), int_bool_op.clone()),
+
+                (Name("&&"), bool_bool_op.clone()),
+                (Name("||"), bool_bool_op.clone()),
+                (Name("!"), bool_unary_op.clone()),
+
                 (Name("println"), Type::Fn(vec![Type::Int], Box::new(Type::Unit))),
             ]),
         }
@@ -310,6 +325,7 @@ impl TypeChecker {
             Block(expr) => self.infer_constraints_expr(env, expr),
             Ref(name) => (env.get(name), vec![]),
             Int(_) => (Type::Int, vec![]),
+            Bool(_) => (Type::Bool, vec![]),
             Unit => (Type::Unit, vec![]),
             Data(name, args) => {
                 let df = self.cons_datadef.get(name).unwrap().clone();
@@ -388,6 +404,7 @@ fn apply_subst_simp(subst: &TySubst, simp: Simp) -> Simp {
         Simp::Block(e) => Simp::Block(Box::new(apply_subst_expr(subst, *e))),
         Simp::Ref(n) => Simp::Ref(n),
         Simp::Int(i) => Simp::Int(i),
+        Simp::Bool(b) => Simp::Bool(b),
         Simp::Unit => Simp::Unit,
         Simp::Data(n, args) => {
             let new_args = args.iter().cloned().map(|a| apply_subst_simp(subst, a)).collect();
@@ -402,6 +419,7 @@ fn apply_subst_pat(subst: &TySubst, pat: Pattern) -> Pattern {
     match pat {
         Var(name, ty) => Var(name, subst.apply(ty)),
         Int(i) => Int(i),
+        Bool(b) => Bool(b),
         Data(data, name, pats) => {
             let new_pats = pats.iter().map(|p| apply_subst_pat(subst, p.clone())).collect();
             Data(data, name, new_pats)

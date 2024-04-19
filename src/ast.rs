@@ -20,6 +20,9 @@ impl Op for Name {
     fn valid(&self) -> bool {
         match self.0 {
             "+" | "-" | "*" | "/" | "%" | "~" => true,
+            "==" | "!=" | "<" | ">" | "<=" | ">=" => true,
+            "&&" | "||" => true,
+            "!" => true,
             _ => false,
         }
     }
@@ -28,6 +31,9 @@ impl Op for Name {
         match self.0 {
             "+" | "-" => 1,
             "*" | "/" | "%" => 2,
+            "==" | "!=" | "<" | ">" | "<=" | ">=" => 0,
+            "&&" | "||" => 0,
+            "!" => 0,
             _ => 0,
         }
     }
@@ -35,7 +41,7 @@ impl Op for Name {
     fn assoc(&self) -> i32 {
         match self.0 {
             "+" | "-" | "*" | "/" | "%" => 1,
-            _ => 0,
+            _ => 1,
         }
     }
 
@@ -43,6 +49,7 @@ impl Op for Name {
         match self.0 {
             // "-" | "~" => true,
             "~" => true,
+            "!" => true,
             _ => false,
         }
     }
@@ -51,6 +58,7 @@ impl Op for Name {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     Int,
+    Bool,
     Unit,
     Fn(Vec<Type>, Box<Type>),
     UserDef(Name),
@@ -87,7 +95,8 @@ pub struct Cons {
 #[derive(Debug, Clone)]
 pub enum Pattern {
     Var(Name, Type), // naive binding
-    Int(i64), // literal
+    Int(i64),
+    Bool(bool),
     Data(DataDef, Name, Vec<Pattern>),
 
     // TODO: structural matching
@@ -99,6 +108,7 @@ impl Pattern {
         match self {
             Var(name, ty) => vec![(*name, ty.clone())],
             Int(_) => vec![],
+            Bool(_) => vec![],
             Data(_, _, pats) => pats.iter().flat_map(|pat| pat.bindings()).collect(),
         }
     }
@@ -110,6 +120,7 @@ impl Pattern {
         match self {
             Var(_, ty) => ty.clone(),
             Int(_) => Type::Int,
+            Bool(_) => Type::Bool,
             Data(data, _, _) => Type::UserDef(data.name),
         }
     }
@@ -131,6 +142,7 @@ pub enum Simp {
 
     // literals
     Int(i64),
+    Bool(bool),
     Unit,
     Data(Name, Vec<Simp>),
 }

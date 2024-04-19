@@ -12,6 +12,7 @@ impl fmt::Display for Type {
         use Type::*;
         match self {
             Int => write!(f, "Int"),
+            Bool => write!(f, "Bool"),
             Unit => write!(f, "Unit"),
             Fn(args, ret) => {
                 write!(f, "(")?;
@@ -71,6 +72,7 @@ impl fmt::Display for Pattern {
         match self {
             Var(name, ty) => write!(f, "({name}: {ty})"),
             Int(n) => write!(f, "{}", n),
+            Bool(b) => write!(f, "{}", b),
             Data(_, name, pats) => {
                 write!(f, "{}(", name)?;
                 for (i, pat) in pats.iter().enumerate() {
@@ -123,6 +125,7 @@ impl fmt::Display for Simp {
             Block(expr) => write!(f, "{{\n{}\n}}", expr),
             Ref(name) => write!(f, "({})", name),
             Int(n) => write!(f, "{}", n),
+            Bool(b) => write!(f, "{}", b),
             Unit => write!(f, "()"),
             Data(name, args) => {
                 if args.is_empty() {

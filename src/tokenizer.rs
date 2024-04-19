@@ -25,6 +25,7 @@ pub enum TokenKind {
     // literals, names
     Name(String),
     Number(i64),
+    Bool(bool),
 
     // end of file
     EOF,
@@ -71,6 +72,7 @@ impl fmt::Display for TokenKind {
 
             Name(s) => write!(f, "{}", s),
             Number(n) => write!(f, "{}", n),
+            Bool(b) => write!(f, "{}", b),
 
             EOF => write!(f, "<EOF>"),
         }
@@ -111,6 +113,8 @@ impl Tokens {
 static KEYWORDS: phf::Map<&'static str, TokenKind> = phf_map! {
     "data" => TokenKind::DataDef,
     "type" => TokenKind::TypeDef,
+    "true" => TokenKind::Bool(true),
+    "false" => TokenKind::Bool(false),
     "let" => TokenKind::Let,
     "fn" => TokenKind::FnDef,
     "match" => TokenKind::Match,
@@ -188,6 +192,30 @@ impl Scanner {
         self.source.get(self.position).cloned()
     }
 
+    fn keyword_ahead(&self) -> bool {
+        let mut buffer = self.buffer.clone();
+        let mut position = self.position;
+
+        loop {
+            let c = self.source.get(position).unwrap();
+            if c.is_whitespace() {
+                break;
+            }
+            buffer.push(*c);
+            if is_keyword(&buffer) || buffer == "==" { // extremely jank, fix later
+                return true;
+            }
+
+            position += 1;
+
+            if position >= self.source.len() {
+                break;
+            }
+        }
+
+        return false;
+    }
+
     fn next(&mut self) -> char {
         let c = self.source[self.position];
         self.position += 1;
@@ -209,7 +237,7 @@ impl Scanner {
             let mut flush = false;
             let mut next: Option<TokenKind> = None;
 
-            if is_delim(c) {
+            if is_delim(c) && !self.keyword_ahead() {
                 flush = true;
                 let c = self.next();
                 next = Some(DELIMS[&c].clone());

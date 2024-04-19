@@ -105,7 +105,6 @@ impl Parser {
     }
 
     fn parse_expr(&mut self) -> Expr {
-        println!("Parsing expr, token is {:?}", self.peek());
         match self.peek() {
             TokenKind::Endl => {
                 self.accept();
@@ -148,6 +147,11 @@ impl Parser {
                 let n = *n;
                 self.accept();
                 Pattern::Int(n)
+            },
+            TokenKind::Bool(b) => {
+                let b = *b;
+                self.accept();
+                Pattern::Bool(b)
             },
             _ => expect_fail!("Pattern", self.peek_wpos()),
         }
@@ -321,6 +325,11 @@ impl Parser {
                 let n = *n;
                 self.accept();
                 Simp::Int(n)
+            },
+            TokenKind::Bool(b) => {
+                let b = *b;
+                self.accept();
+                Simp::Bool(b)
             },
             _ => expect_fail!("Atom", self.peek_wpos()),
         }

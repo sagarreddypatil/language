@@ -1,0 +1,58 @@
+data List = Cons(Int, List) | Nil
+data Pair = Pair(Int, Int)
+data Maybe = Some(Int) | None
+data MaybePair = SomePair(Int, Int) | NoPair
+
+let indexof = fn(list, x) = {
+    match list {
+        Nil = None
+        Cons(y, ys) = match x == y {
+            true = Some(0)
+            _ = match indexof(ys, x) {
+                Some(i) = Some(i + 1)
+                None = None
+            }
+        }
+    }
+}
+
+let get = fn(list, i) = {
+    match i {
+        0 = match list {
+            Cons(x, _) = Some(x)
+            Nil = None
+        }
+        _ = match list {
+            Cons(_, xs) = get(xs, i - 1)
+            Nil = None
+        }
+    }
+}
+
+let slice = fn(list, i) = {
+    match i {
+        0 = list
+        _ = match list {
+            Cons(_, xs) = slice(xs, i - 1)
+            Nil = Nil
+        }
+    }
+}
+
+let twosum = fn(list, tgt, i) = {
+    match get(list, i) {
+        Some(x) = {
+            let rest = slice(list, i + 1)
+            match indexof(rest, tgt - x) {
+                Some(j) = SomePair(i, j + i + 1)
+                None = twosum(list, tgt, i + 1)
+            }
+        }
+        None = NoPair
+    }
+}
+
+let mylist = Cons(3, Cons(3, Nil))
+let out = twosum(mylist, 6, 0)
+
+out
