@@ -1,0 +1,11 @@
+data Pair = Pair(Int, Int)
+
+let ack = fn(m, n) = match(Pair(m, n)) {
+    Pair(0, _) = n + 1
+    Pair(_, 0) = ack(m - 1, 1)
+    _          = {
+        ack(m - 1, ack(m, n - 1))
+    }
+}
+
+ack(3, 7)
