@@ -154,7 +154,7 @@ pub struct FnDef {
     pub ret: Type,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Program {
     pub data_defs: Vec<DataDef>,
     // pub type_defs: Vec<TypeDef>, // TODO: implement later, parser commented

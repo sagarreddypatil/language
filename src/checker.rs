@@ -214,7 +214,7 @@ impl TypeChecker {
     }
 
     pub fn infer(&mut self, program: Program) -> Program {
-        let constraints = self.infer_constraints(program.clone());
+        let constraints = self.infer_constraints(&program);
         // println!("Constraints:");
         // for c in &constraints {
         //     println!("{}", c);
@@ -227,7 +227,7 @@ impl TypeChecker {
         program
     }
 
-    fn infer_constraints(&mut self, program: Program) -> TyConstraints {
+    fn infer_constraints(&mut self, program: &Program) -> TyConstraints {
         self.cons_datadef = program
             .data_defs
             .iter()
@@ -355,7 +355,7 @@ impl TypeChecker {
 }
 
 fn apply_subst_program(subst: &TySubst, program: Program) -> Program {
-    let new_expr = program.expr.as_ref().map(|e| apply_subst_expr(subst, e.clone()));
+    let new_expr = program.expr.map(|e| apply_subst_expr(subst, e));
 
     Program {
         expr: new_expr,
@@ -391,14 +391,14 @@ fn apply_subst_simp(subst: &TySubst, simp: Simp) -> Simp {
         Simp::Match(s, arms) => {
             let new_s = apply_subst_simp(subst, *s);
             let new_arms = arms
-                .iter().cloned()
+                .into_iter()
                 .map(|(pat, simp)| (apply_subst_pat(subst, pat), apply_subst_simp(subst, simp)))
                 .collect();
             Simp::Match(Box::new(new_s), new_arms)
         }
         Simp::FnCall(s, args) => {
             let new_s = apply_subst_simp(subst, *s);
-            let new_args = args.iter().cloned().map(|a| apply_subst_simp(subst, a)).collect();
+            let new_args = args.into_iter().map(|a| apply_subst_simp(subst, a)).collect();
             Simp::FnCall(Box::new(new_s), new_args)
         }
         Simp::Block(e) => Simp::Block(Box::new(apply_subst_expr(subst, *e))),
@@ -407,7 +407,7 @@ fn apply_subst_simp(subst: &TySubst, simp: Simp) -> Simp {
         Simp::Bool(b) => Simp::Bool(b),
         Simp::Unit => Simp::Unit,
         Simp::Data(n, args) => {
-            let new_args = args.iter().cloned().map(|a| apply_subst_simp(subst, a)).collect();
+            let new_args = args.into_iter().map(|a| apply_subst_simp(subst, a)).collect();
             Simp::Data(n, new_args)
         }
     }

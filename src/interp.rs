@@ -11,7 +11,7 @@ pub enum Value {
     Bool(bool),
     Unit,
     Data(Name, Vec<Value>),
-    Closure(Env, FnDef),
+    Closure(Env, Rc<FnDef>),
     BuiltIn(BuiltInFn),
 }
 
@@ -62,21 +62,21 @@ impl Env {
         Self {
             data_defs: HashMap::new(),
             bindings: HashMap::from([
-                (Name("+"), Rc::new(RefCell::new(Some(Value::BuiltIn(add))))),
-                (Name("-"), Rc::new(RefCell::new(Some(Value::BuiltIn(sub))))),
-                (Name("*"), Rc::new(RefCell::new(Some(Value::BuiltIn(mul))))),
-                (Name("/"), Rc::new(RefCell::new(Some(Value::BuiltIn(div))))),
-                (Name("%"), Rc::new(RefCell::new(Some(Value::BuiltIn(mod_))))),
-                (Name("~"), Rc::new(RefCell::new(Some(Value::BuiltIn(bnot))))),
+                (Name("+"),  Rc::new(RefCell::new(Some(Value::BuiltIn(add))))),
+                (Name("-"),  Rc::new(RefCell::new(Some(Value::BuiltIn(sub))))),
+                (Name("*"),  Rc::new(RefCell::new(Some(Value::BuiltIn(mul))))),
+                (Name("/"),  Rc::new(RefCell::new(Some(Value::BuiltIn(div))))),
+                (Name("%"),  Rc::new(RefCell::new(Some(Value::BuiltIn(mod_))))),
+                (Name("~"),  Rc::new(RefCell::new(Some(Value::BuiltIn(bnot))))),
                 (Name("=="), Rc::new(RefCell::new(Some(Value::BuiltIn(eq))))),
                 (Name("!="), Rc::new(RefCell::new(Some(Value::BuiltIn(neq))))),
-                (Name("<"), Rc::new(RefCell::new(Some(Value::BuiltIn(lt))))),
-                (Name(">"), Rc::new(RefCell::new(Some(Value::BuiltIn(gt))))),
+                (Name("<"),  Rc::new(RefCell::new(Some(Value::BuiltIn(lt))))),
+                (Name(">"),  Rc::new(RefCell::new(Some(Value::BuiltIn(gt))))),
                 (Name("<="), Rc::new(RefCell::new(Some(Value::BuiltIn(le))))),
                 (Name(">="), Rc::new(RefCell::new(Some(Value::BuiltIn(ge))))),
                 (Name("&&"), Rc::new(RefCell::new(Some(Value::BuiltIn(and))))),
                 (Name("||"), Rc::new(RefCell::new(Some(Value::BuiltIn(or))))),
-                (Name("!"), Rc::new(RefCell::new(Some(Value::BuiltIn(not))))),
+                (Name("!"),  Rc::new(RefCell::new(Some(Value::BuiltIn(not))))),
                 (Name("println"), Rc::new(RefCell::new(Some(Value::BuiltIn(builtin_println))))),
             ]),
         }
@@ -217,7 +217,7 @@ fn eval_simp(env: Env, simp: &Simp) -> Value {
             let free_vars = free_vars_simp(simp);
             let closure_env = env.capture(&free_vars);
 
-            Value::Closure(closure_env, f.clone())
+            Value::Closure(closure_env, f.clone().into())
         }
         Match(s, arms) => {
             let value = eval_simp(env.clone(), s);
