@@ -21,6 +21,7 @@ pub enum TokenKind {
     DataDef,
     TypeDef,
     Arrow,
+    FatArrow,
 
     // literals, names
     Name(String),
@@ -69,6 +70,7 @@ impl fmt::Display for TokenKind {
             DataDef => write!(f, "data"),
             TypeDef => write!(f, "type"),
             Arrow => write!(f, "->"),
+            FatArrow => write!(f, "=>"),
 
             Name(s) => write!(f, "{}", s),
             Number(n) => write!(f, "{}", n),
@@ -88,8 +90,8 @@ impl fmt::Display for Tokens {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut s = String::new();
 
-        for (i, token) in self.list.iter().enumerate() {
-            s.push_str(&format!("{:03}: {}\n", i, token.kind));
+        for token in self.list.iter() {
+            s.push_str(&format!("{}:{}: {}\n", token.pos.line, token.pos.col, token.kind));
         }
 
         write!(f, "{}", s)
@@ -118,13 +120,14 @@ static KEYWORDS: phf::Map<&'static str, TokenKind> = phf_map! {
     "let" => TokenKind::Let,
     "fn" => TokenKind::FnDef,
     "match" => TokenKind::Match,
+    "=" => TokenKind::Eq,
     "->" => TokenKind::Arrow,
+    "=>" => TokenKind::FatArrow,
 };
 
 static DELIMS: phf::Map<char, TokenKind> = phf_map! {
     ':' => TokenKind::Colon,
     ',' => TokenKind::Comma,
-    // '=' => TokenKind::Eq,
     '|' => TokenKind::Pipe,
     '(' => TokenKind::POpen,
     ')' => TokenKind::PClose,
@@ -182,12 +185,6 @@ impl Scanner {
     }
 
     fn push(&mut self, token: TokenKind) {
-        let token = if token == TokenKind::Name("=".to_string()) {
-            TokenKind::Eq
-        } else {
-            token
-        };
-
         self.tokens.push(Token {
             kind: token,
             pos: self.pos(),
@@ -196,30 +193,6 @@ impl Scanner {
 
     fn peek(&self) -> Option<char> {
         self.source.get(self.position).cloned()
-    }
-
-    fn keyword_ahead(&self) -> bool {
-        let mut buffer = self.buffer.clone();
-        let mut position = self.position;
-
-        loop {
-            let c = self.source.get(position).unwrap();
-            if c.is_whitespace() {
-                break;
-            }
-            buffer.push(*c);
-            if is_keyword(&buffer) || buffer == "==" { // extremely jank, fix later
-                return true;
-            }
-
-            position += 1;
-
-            if position >= self.source.len() {
-                break;
-            }
-        }
-
-        return false;
     }
 
     fn next(&mut self) -> char {
@@ -243,12 +216,11 @@ impl Scanner {
             let mut flush = false;
             let mut next: Option<TokenKind> = None;
 
-            if is_delim(c) && !self.keyword_ahead() {
+            if is_delim(c) {
                 flush = true;
                 let c = self.next();
                 next = Some(DELIMS[&c].clone());
-            } else
-            if c.is_whitespace() {
+            } else if c.is_whitespace() {
                 flush = true;
                 self.next();
             }

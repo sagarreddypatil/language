@@ -113,18 +113,6 @@ impl Pattern {
     }
 }
 
-impl Pattern {
-    pub fn get_type(&self) -> Type {
-        use Pattern::*;
-        match self {
-            Var(_, ty) => ty.clone(),
-            Int(_) => Type::Int,
-            Bool(_) => Type::Bool,
-            Data(data, _, _) => Type::UserDef(data.name),
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub enum Expr {
     Bind(Pattern, Simp, Box<Expr>),

@@ -68,6 +68,18 @@ impl Parser {
         }
     }
 
+    fn optional(&mut self, token: TokenKind) {
+        if self.peek() == &token {
+            self.accept();
+        }
+    }
+
+    fn unaccept(&mut self, token: TokenKind) {
+        if self.position > 0 && self.tokens[self.position - 1].kind == token {
+            self.position -= 1;
+        }
+    }
+
     pub fn parse_program(&mut self) -> Program {
         let mut program = Program {
             data_defs: Vec::new(),
@@ -196,9 +208,7 @@ impl Parser {
                 self.accept();
                 let expr = self.parse_expr();
 
-                if self.peek() == &TokenKind::Endl {
-                    self.accept();
-                }
+                self.optional(TokenKind::Endl);
                 self.expect(TokenKind::BClose);
 
                 Simp::Block(Box::new(expr))
@@ -302,9 +312,7 @@ impl Parser {
                 } else {
                     let simp = self.parse_simp();
 
-                    if self.peek() == &TokenKind::Endl {
-                        self.accept();
-                    }
+                    self.optional(TokenKind::Endl);
                     self.expect(TokenKind::PClose);
 
                     simp
@@ -367,22 +375,25 @@ impl Parser {
     fn parse_match(&mut self) -> Simp {
         self.expect(TokenKind::Match);
         let expr = self.parse_simp();
-
-        self.expect(TokenKind::BOpen);
+        self.optional(TokenKind::Endl);
 
         let mut cases = Vec::new();
         loop {
             match self.peek() {
-                TokenKind::Endl => { self.accept(); continue; },
-                TokenKind::BClose => { self.accept(); break; },
-                _ => {
+                TokenKind::Pipe => {
+                    self.accept();
                     let pattern = self.parse_pattern();
-                    self.expect(TokenKind::Eq);
+                    self.expect(TokenKind::FatArrow);
                     let simp = self.parse_simp();
                     cases.push((pattern, simp));
+                    self.optional(TokenKind::Endl);
                 },
+                _ => break,
             }
         }
+
+        // last case might eat the endline
+        self.unaccept(TokenKind::Endl);
 
         Simp::Match(Box::new(expr), cases)
     }

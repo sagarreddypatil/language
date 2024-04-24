@@ -1,6 +1,2 @@
-let sum = fn(n) = match n {
-    0 = 1
-    _ = n + sum(n - 1)
-}
-
-sum(856)
+let bad = fn(x) = fn(x - 1)
+bad(10)

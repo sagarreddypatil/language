@@ -1,37 +1,30 @@
 data List = Cons(Int, List) | Nil
 
-let sorted = fn(list) = match list {
-    Nil = true
-    Cons(_, Nil) = true
-    Cons(x, Cons(y, rest)) = match x <= y {
-        true = sorted(Cons(y, rest))
-        false = false
-    }
-}
+let sorted = fn(list) = match list
+    | Nil => true
+    | Cons(_, Nil) => true
+    | Cons(x, Cons(y, rest)) => match x <= y
+        | true  => sorted(Cons(y, rest))
+        | false => false
 
-let bubble = fn(list) = match list {
-    Nil = Nil
-    Cons(x, Nil) = Cons(x, Nil)
-    Cons(x, Cons(y, rest)) = match x <= y {
-        true = Cons(x, bubble(Cons(y, rest)))
-        false = Cons(y, bubble(Cons(x, rest)))
-    }
-}
 
-let sort = fn(list) = match sorted(list) {
-    true = list
-    false = sort(bubble(list))
-}
+let bubble = fn(list) = match list
+    | Nil => Nil
+    | Cons(x, Nil) => Cons(x, Nil)
+    | Cons(x, Cons(y, rest)) => match x <= y
+        | true => Cons(x, bubble(Cons(y, rest)))
+        | false => Cons(y, bubble(Cons(x, rest)))
 
-let append = fn(list1, list2) = match list1 {
-    Nil = list2
-    Cons(x, rest) = Cons(x, append(rest, list2))
-}
+let sort = fn(list) = match sorted(list)
+    | true  => list | false => sort(bubble(list))
 
-let reverse = fn(list) = match list {
-    Nil = Nil
-    Cons(x, rest) = append(reverse(rest), Cons(x, Nil))
-}
+let append = fn(list1, list2) = match list1
+    | Nil => list2
+    | Cons(x, rest) => Cons(x, append(rest, list2))
+
+let reverse = fn(list) = match list
+    | Nil => Nil
+    | Cons(x, rest) => append(reverse(rest), Cons(x, Nil))
 
 let list = Cons(4, Cons(5, Cons(1, Cons(2, Cons(3, Nil)))))
 reverse(sort((list)))
