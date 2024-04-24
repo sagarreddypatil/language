@@ -11,9 +11,9 @@ impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use Type::*;
         match self {
-            Int => write!(f, "Int"),
-            Bool => write!(f, "Bool"),
-            Unit => write!(f, "Unit"),
+            Int => write!(f, "int"),
+            Bool => write!(f, "bool"),
+            Unit => write!(f, "unit"),
             Fn(args, ret) => {
                 write!(f, "(")?;
                 for (i, arg) in args.iter().enumerate() {

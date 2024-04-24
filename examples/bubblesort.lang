@@ -1,11 +1,11 @@
-data List = Cons(Int, List) | Nil
+data List = Cons(int, List) | Nil
 
 let sorted = fn(list) = match list
     | Nil => true
     | Cons(_, Nil) => true
-    | Cons(x, Cons(y, rest)) => match x <= y
-        | true  => sorted(Cons(y, rest))
-        | false => false
+    | Cons(x, Cons(y, rest)) => if x <= y
+        sorted(Cons(y, rest))
+        else false
 
 
 let bubble = fn(list) = match list

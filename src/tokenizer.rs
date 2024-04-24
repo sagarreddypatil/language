@@ -12,12 +12,13 @@ pub enum TokenKind {
     PClose,
     BOpen,
     BClose,
-    Endl,
 
     // keywords
     FnDef,
     Let,
     Match,
+    If,
+    Else,
     DataDef,
     TypeDef,
     Arrow,
@@ -62,11 +63,12 @@ impl fmt::Display for TokenKind {
             PClose => write!(f, ")"),
             BOpen => write!(f, "{{"),
             BClose => write!(f, "}}"),
-            Endl => write!(f, ";"),
 
             FnDef => write!(f, "fn"),
             Let => write!(f, "let"),
             Match => write!(f, "match"),
+            If => write!(f, "if"),
+            Else => write!(f, "else"),
             DataDef => write!(f, "data"),
             TypeDef => write!(f, "type"),
             Arrow => write!(f, "->"),
@@ -104,11 +106,7 @@ impl Tokens {
     }
 
     pub fn push(&mut self, token: Token) {
-        use TokenKind::*;
-        match (self.list.last().map(|x| &x.kind), &token.kind) {
-            (Some(Endl), Endl) => return,
-            _ => self.list.push(token),
-        }
+        self.list.push(token);
     }
 }
 
@@ -120,6 +118,8 @@ static KEYWORDS: phf::Map<&'static str, TokenKind> = phf_map! {
     "let" => TokenKind::Let,
     "fn" => TokenKind::FnDef,
     "match" => TokenKind::Match,
+    "if" => TokenKind::If,
+    "else" => TokenKind::Else,
     "=" => TokenKind::Eq,
     "->" => TokenKind::Arrow,
     "=>" => TokenKind::FatArrow,
@@ -133,8 +133,6 @@ static DELIMS: phf::Map<char, TokenKind> = phf_map! {
     ')' => TokenKind::PClose,
     '{' => TokenKind::BOpen,
     '}' => TokenKind::BClose,
-    ';' => TokenKind::Endl,
-    '\n' => TokenKind::Endl,
 };
 
 fn is_delim(c: char) -> bool {

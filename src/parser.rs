@@ -89,7 +89,6 @@ impl Parser {
 
         while !self.end() {
             match self.peek() {
-                TokenKind::Endl => { self.accept(); },
                 TokenKind::DataDef => program.data_defs.push(self.parse_data_ref()),
                 // TokenKind::TypeDef => program.type_defs.push(self.parse_type_def()),
                 _ => break,
@@ -118,10 +117,6 @@ impl Parser {
 
     fn parse_expr(&mut self) -> Expr {
         match self.peek() {
-            TokenKind::Endl => {
-                self.accept();
-                self.parse_expr()
-            },
             TokenKind::Let => self.parse_let(),
             _ => Expr::Simp(self.parse_simp()),
         }
@@ -133,8 +128,6 @@ impl Parser {
 
         self.expect(TokenKind::Eq);
         let rhs = self.parse_simp();
-
-        self.expect(TokenKind::Endl);
 
         let body = self.parse_expr();
 
@@ -198,17 +191,13 @@ impl Parser {
 
     fn parse_simp(&mut self) -> Simp {
         match self.peek() {
-            TokenKind::Endl => {
-                self.accept();
-                self.parse_simp()
-            },
+            TokenKind::If => self.parse_if(),
             TokenKind::Match => self.parse_match(),
             TokenKind::FnDef => self.parse_fndef(),
             TokenKind::BOpen => {
                 self.accept();
                 let expr = self.parse_expr();
 
-                self.optional(TokenKind::Endl);
                 self.expect(TokenKind::BClose);
 
                 Simp::Block(Box::new(expr))
@@ -312,7 +301,6 @@ impl Parser {
                 } else {
                     let simp = self.parse_simp();
 
-                    self.optional(TokenKind::Endl);
                     self.expect(TokenKind::PClose);
 
                     simp
@@ -361,7 +349,6 @@ impl Parser {
                             self.accept();
                             break;
                         },
-                        TokenKind::Endl => { self.accept(); },
                         _ => expect_fail!("',' or ')'", token),
                     }
                 }
@@ -372,10 +359,28 @@ impl Parser {
         slist
     }
 
+    fn parse_if(&mut self) -> Simp {
+        self.expect(TokenKind::If);
+        let cond = self.parse_simp();
+        let then = self.parse_simp();
+
+        let els = match self.peek() {
+            TokenKind::Else => {
+                self.accept();
+                self.parse_simp()
+            },
+            _ => Simp::Unit,
+        };
+
+        Simp::Match(Box::new(cond), vec![
+            (Pattern::Bool(true), then),
+            (Pattern::Bool(false), els),
+        ])
+    }
+
     fn parse_match(&mut self) -> Simp {
         self.expect(TokenKind::Match);
         let expr = self.parse_simp();
-        self.optional(TokenKind::Endl);
 
         let mut cases = Vec::new();
         loop {
@@ -386,14 +391,10 @@ impl Parser {
                     self.expect(TokenKind::FatArrow);
                     let simp = self.parse_simp();
                     cases.push((pattern, simp));
-                    self.optional(TokenKind::Endl);
                 },
                 _ => break,
             }
         }
-
-        // last case might eat the endline
-        self.unaccept(TokenKind::Endl);
 
         Simp::Match(Box::new(expr), cases)
     }
@@ -415,7 +416,6 @@ impl Parser {
                     let con = self.parse_cons();
                     cons.insert(con.0, con.1);
                 },
-                TokenKind::Endl => { self.accept(); },
                 _ => break,
             }
         }
@@ -492,8 +492,9 @@ impl Parser {
         } else {
             let name = self.expect_name();
             let ty = match name.0 {
-                "Int" => Type::Int,
-                "Unit" => Type::Unit,
+                "int" => Type::Int,
+                "unit" => Type::Unit,
+                "bool" => Type::Bool,
                 _ => Type::UserDef(name),
             };
 

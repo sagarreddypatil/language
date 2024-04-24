@@ -1,59 +1,48 @@
-data Maybe = Some(Int) | None
-data Tree = Leaf(Int) | Node(Int, Tree, Tree)
+data Maybe = Some(int) | None
+data Tree = Leaf(int) | Node(int, Tree, Tree)
 
-data List = Cons(Int, List) | Nil
-data Pair = Pair(Int, Int)
+data List = Cons(int, List) | Nil
+data Pair = Pair(int, int)
 
-let div = fn(a, b) =
-    match b {
-        0 = None
-        _ = Some(a / b)
-    }
+let div = fn(a, b) = match b
+    | 0 => None
+    | _ => Some(a / b)
 
-let gcd = fn(a, b) = match b {
-    0 = a
-    _ = gcd(b, a % b)
-}
+let gcd = fn(a, b) = match b
+    | 0 => a
+    | _ => gcd(b, a % b)
 
 let collatz = fn(n) = {
     let _ = println(n)
-    match n {
-        1 = 1
-        _ = match n % 2 {
-            0 = collatz(n / 2)
-            _ = collatz(3 * n + 1)
-        }
-    }
+    match n
+        | 1 => 1
+        | _ => match n % 2
+            | 0 => collatz(n / 2)
+            | _ => collatz(3 * n + 1)
 }
 
-let fib = fn(x) = {
-    match x {
-        0 = 0
-        1 = 1
-        _ = fib(x - 1) + fib(x - 2)
-    }
-}
+let fib = fn(x) = match x
+    | 0 => 0
+    | 1 => 1
+    | _ => fib(x - 1) + fib(x - 2)
 
-let flip = fn(tree) = match tree {
-    Leaf(x) = Leaf(x)
-    Node(x, left, right) = Node(x, flip(right), flip(left))
-}
+let flip = fn(tree) = match tree
+    | Leaf(x) => Leaf(x)
+    | Node(x, left, right) => Node(x, flip(right), flip(left))
 
 let mytree = Node(1, Node(2, Leaf(3), Leaf(4)), Leaf(5))
 let flipped = flip(mytree)
 
 let reverse = fn(list) = {
-    let rec = fn(list, acc) = match list {
-        Nil = acc
-        Cons(x, xs) = rec(xs, Cons(x, acc))
-    }
+    let rec = fn(list, acc) = match list
+        | Nil => acc
+        | Cons(x, xs) => rec(xs, Cons(x, acc))
     rec(list, Nil)
 }
 
-let never = fn(x) = match x > 0 {
-    true = never(x - 1)
-    false = 0
-}
+let never = fn(x) = match x > 0
+    | true  => never(x - 1)
+    | false => 0
 
 let mylist = Cons(1, Cons(2, Cons(3, Cons(4, Cons(5, Nil)))))
 let reversed = reverse(mylist)
@@ -62,5 +51,7 @@ let Pair(x, y) = Pair(10, never(123))
 
 // x
 // reversed
+flipped
 // true
-fib(10)
+// fib(10)
+// never(10)

@@ -1,2 +1,2 @@
-let bad = fn(x) = fn(x - 1)
+let bad = fn(x) = bad(x - 1)
 bad(10)
