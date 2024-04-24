@@ -124,7 +124,7 @@ static KEYWORDS: phf::Map<&'static str, TokenKind> = phf_map! {
 static DELIMS: phf::Map<char, TokenKind> = phf_map! {
     ':' => TokenKind::Colon,
     ',' => TokenKind::Comma,
-    '=' => TokenKind::Eq,
+    // '=' => TokenKind::Eq,
     '|' => TokenKind::Pipe,
     '(' => TokenKind::POpen,
     ')' => TokenKind::PClose,
@@ -182,6 +182,12 @@ impl Scanner {
     }
 
     fn push(&mut self, token: TokenKind) {
+        let token = if token == TokenKind::Name("=".to_string()) {
+            TokenKind::Eq
+        } else {
+            token
+        };
+
         self.tokens.push(Token {
             kind: token,
             pos: self.pos(),
@@ -241,7 +247,8 @@ impl Scanner {
                 flush = true;
                 let c = self.next();
                 next = Some(DELIMS[&c].clone());
-            } else if c.is_whitespace() {
+            } else
+            if c.is_whitespace() {
                 flush = true;
                 self.next();
             }

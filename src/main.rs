@@ -21,6 +21,7 @@ fn main() {
 
     let mut scanner = Scanner::new(prog.to_string());
     scanner.tokenize();
+    println!("{}", scanner.tokens);
 
     let mut parser = Parser::new(scanner.tokens.list);
     let program = parser.parse_program();

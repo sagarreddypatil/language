@@ -1,9 +1,0 @@
-data Pair = Pair(Int, Int)
-
-let never = fn(x) = match x > 0 {
-    true = never(x - 1)
-    false = never(x + 1)
-}
-
-let Pair(x, y) = Pair(1, never(10))
-y

@@ -98,7 +98,7 @@ impl Env {
         self
     }
 
-    pub fn capture(&self, names: &[Name]) -> Self {
+    pub fn capture(self, names: &[Name]) -> Self {
         let mut bindings = HashMap::new();
         for name in names {
             if let Some(value) = self.bindings.get(name) {
@@ -108,7 +108,7 @@ impl Env {
             }
         }
         Self {
-            data_defs: self.data_defs.clone(),
+            data_defs: self.data_defs,
             bindings,
         }
     }
@@ -194,19 +194,14 @@ fn eval_expr(env: Env, expr: &Expr) -> Value {
     use Expr::*;
     match expr {
         Bind(pat, rhs, body) => {
-            let free_body = free_vars_expr(body);
             let bound_names = bound_names_pat(pat);
-
-            if bound_names.iter().all(|name| !free_body.contains(name)) {
-                return eval_expr(env, body);
-            }
 
             let env = bound_names
                 .iter()
                 .fold(env, |nenv, name| nenv.bind_late(name.clone()));
 
             let value = eval_simp(env.clone(), rhs);
-            let nenv = eval_pattern_match(&env, pat, &value)
+            let nenv = eval_pattern_match(env, pat, &value)
                 .unwrap_or_else(|| panic!("Pattern match failed: {:?} = {:?}", pat, value));
 
             eval_expr(nenv, body)
@@ -227,7 +222,7 @@ fn eval_simp(env: Env, simp: &Simp) -> Value {
         Match(s, arms) => {
             let value = eval_simp(env.clone(), s);
             for (pat, body) in arms {
-                if let Some(nenv) = eval_pattern_match(&env, pat, &value) {
+                if let Some(nenv) = eval_pattern_match(env.clone(), pat, &value) {
                     return eval_simp(nenv, body);
                 }
             }
@@ -280,15 +275,15 @@ fn eval_simp(env: Env, simp: &Simp) -> Value {
     }
 }
 
-fn eval_pattern_match(env: &Env, pat: &Pattern, value: &Value) -> Option<Env> {
+fn eval_pattern_match(env: Env, pat: &Pattern, value: &Value) -> Option<Env> {
     match pat {
-        Pattern::Var(name, _) => Some(env.clone().bind(name.clone(), value.clone())),
+        Pattern::Var(name, _) => Some(env.bind(name.clone(), value.clone())),
         Pattern::Int(n) => match value {
-            Value::Int(m) if n == m => Some(env.clone()),
+            Value::Int(m) if n == m => Some(env),
             _ => None,
         },
         Pattern::Bool(b) => match value {
-            Value::Bool(c) if b == c => Some(env.clone()),
+            Value::Bool(c) if b == c => Some(env),
             _ => None,
         },
         Pattern::Data(_, ltag, pats) => match value {
@@ -296,7 +291,7 @@ fn eval_pattern_match(env: &Env, pat: &Pattern, value: &Value) -> Option<Env> {
                 .iter()
                 .zip(vals)
                 .try_fold(env.clone(), |nenv, (pat, val)| {
-                    eval_pattern_match(&nenv, pat, val)
+                    eval_pattern_match(nenv, pat, val)
                 }),
             _ => None,
         },

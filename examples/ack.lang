@@ -8,4 +8,4 @@ let ack = fn(m, n) = match(Pair(m, n)) {
     }
 }
 
-ack(3, 6)
+ack(3, 7)

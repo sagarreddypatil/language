@@ -1,0 +1,13 @@
+data List = Cons(Int, List) | Nil
+
+let mylist = Cons(1, Cons(2, Cons(3, Nil)))
+
+let printer = fn(l) = match l {
+    Cons(x, xs) = {
+        let _ = println(x)
+        printer(xs)
+    }
+    Nil         = ()
+}
+
+printer(mylist)

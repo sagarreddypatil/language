@@ -26,6 +26,14 @@ let collatz = fn(n) = {
     }
 }
 
+let fib = fn(x) = {
+    match x {
+        0 = 0
+        1 = 1
+        _ = fib(x - 1) + fib(x - 2)
+    }
+}
+
 let flip = fn(tree) = match tree {
     Leaf(x) = Leaf(x)
     Node(x, left, right) = Node(x, flip(right), flip(left))
@@ -52,6 +60,7 @@ let reversed = reverse(mylist)
 
 let Pair(x, y) = Pair(10, never(123))
 
-x
+// x
 // reversed
 // true
+fib(10)
