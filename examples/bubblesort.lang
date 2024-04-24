@@ -23,5 +23,15 @@ let sort = fn(list) = match sorted(list) {
     false = sort(bubble(list))
 }
 
+let append = fn(list1, list2) = match list1 {
+    Nil = list2
+    Cons(x, rest) = Cons(x, append(rest, list2))
+}
+
+let reverse = fn(list) = match list {
+    Nil = Nil
+    Cons(x, rest) = append(reverse(rest), Cons(x, Nil))
+}
+
 let list = Cons(4, Cons(5, Cons(1, Cons(2, Cons(3, Nil)))))
-sort(list)
+reverse(sort((list)))
