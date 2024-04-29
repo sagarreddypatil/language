@@ -7,9 +7,9 @@ impl fmt::Display for Name {
     }
 }
 
-impl fmt::Display for Type {
+impl fmt::Display for MonoType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use Type::*;
+        use MonoType::*;
         match self {
             Int => write!(f, "int"),
             Bool => write!(f, "bool"),
@@ -25,10 +25,31 @@ impl fmt::Display for Type {
                 write!(f, ") -> {}", ret)
             }
             UserDef(name) => write!(f, "{}", name.0),
-            TyVar(i) => write!(f, "T{}", i),
+            // NVar(name) => write!(f, "{}", name.0),
+            // Var(i) => write!(f, "T{}", i),
         }
     }
+}
 
+impl fmt::Display for PolyType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use PolyType::*;
+        match self {
+            Fn(args, ret) => {
+                write!(f, "(")?;
+                for (i, arg) in args.iter().enumerate() {
+                    write!(f, "{}", arg)?;
+                    if i < args.len() - 1 {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, ") -> {}", ret)
+            }
+            UserDef(name) => write!(f, "{}", name.0),
+            NVar(name) => write!(f, "{}", name.0),
+            Var(i) => write!(f, "T{}", i),
+        }
+    }
 }
 
 impl fmt::Display for TypeDef {
@@ -170,9 +191,7 @@ impl fmt::Display for Program {
         // for type_def in self.type_defs.iter() {
         //     write!(f, "{}\n", type_def)?;
         // }
-        if let Some(expr) = &self.expr {
-            write!(f, "{}", expr)?;
-        }
+        write!(f, "{}", self.expr);
         Ok(())
     }
 }

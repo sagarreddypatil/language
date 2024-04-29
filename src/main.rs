@@ -23,7 +23,7 @@ fn main() {
     scanner.tokenize();
     println!("{}", scanner.tokens);
 
-    let mut parser = Parser::new(scanner.tokens.list);
+    let parser = Parser::new(scanner.tokens.list);
     let program = parser.parse_program();
     println!("{}", &program);
 

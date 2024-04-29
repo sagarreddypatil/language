@@ -187,7 +187,7 @@ pub fn eval_prog(program: &Program) -> Value {
             .insert(data_def.name.clone(), data_def.clone());
     }
 
-    eval_expr(env, program.expr.as_ref().unwrap())
+    eval_expr(env, &program.expr)
 }
 
 fn eval_expr(env: Env, expr: &Expr) -> Value {

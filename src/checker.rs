@@ -44,7 +44,7 @@ impl TySubst {
     pub fn apply(&self, ty: Type) -> Type {
         use Type::*;
         match ty {
-            TyVar(n) =>  {
+            Var(n) =>  {
                 let ret = self.subst.get(&n);
                 match ret {
                     Some(t) => t.clone(),
@@ -132,17 +132,17 @@ impl TyEnv {
 fn ty_in(n: Type, m: Type) -> bool {
     use Type::*;
     match (n, m) {
-        (TyVar(n), TyVar(m)) => n == m,
+        (Var(n), Var(m)) => n == m,
         (Fn(args1, ret1), Fn(args2, ret2)) => {
             args1.len() == args2.len()
                 && args1.iter().zip(args2.iter()).all(|(a1, a2)| ty_in(a1.clone(), a2.clone()))
                 && ty_in(*ret1, *ret2)
         }
-        (TyVar(n), Fn(args, ret)) => {
-            args.iter().any(|a| ty_in(TyVar(n), a.clone())) || ty_in(TyVar(n), *ret)
+        (Var(n), Fn(args, ret)) => {
+            args.iter().any(|a| ty_in(Var(n), a.clone())) || ty_in(Var(n), *ret)
         }
-        (Fn(args, ret), TyVar(n)) => {
-            args.iter().any(|a| ty_in(a.clone(), TyVar(n))) || ty_in(*ret, TyVar(n))
+        (Fn(args, ret), Var(n)) => {
+            args.iter().any(|a| ty_in(a.clone(), Var(n))) || ty_in(*ret, Var(n))
         }
         (_, _) => false
     }
@@ -173,8 +173,8 @@ fn unify(constraints: TyConstraints) -> TySubst {
 
             unify(new_constraints)
         }
-        (TyVar(n), t) => {
-            if ty_in(TyVar(*n), t.clone()) {
+        (Var(n), t) => {
+            if ty_in(Var(*n), t.clone()) {
                 panic!("Type error: recursive type, T{} and {}", n, t);
             }
 
@@ -185,8 +185,8 @@ fn unify(constraints: TyConstraints) -> TySubst {
 
             nsubst
         }
-        (s, TyVar(n)) => {
-            if ty_in(TyVar(*n), s.clone()) {
+        (s, Var(n)) => {
+            if ty_in(Var(*n), s.clone()) {
                 panic!("Type error: recursive type, T{} and {}", n, s);
             }
 
@@ -220,7 +220,7 @@ impl TypeChecker {
         let program = apply_subst_program(&subst, program);
         let prog_ty = subst.apply(prog_ty);
 
-        if let Type::TyVar(_) = prog_ty {
+        if let Type::Var(_) = prog_ty {
             panic!("Type error: final type is unresolved");
         }
 
@@ -238,7 +238,7 @@ impl TypeChecker {
                 acc
             });
 
-        let expr = program.expr.as_ref().unwrap();
+        let expr = &program.expr;
         self.infer_constraints_expr(TyEnv::new(), expr)
     }
 
@@ -379,7 +379,7 @@ impl TypeChecker {
 }
 
 fn apply_subst_program(subst: &TySubst, program: Program) -> Program {
-    let new_expr = program.expr.map(|e| apply_subst_expr(subst, e));
+    let new_expr = apply_subst_expr(subst, program.expr);
 
     Program {
         expr: new_expr,

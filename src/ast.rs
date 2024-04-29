@@ -56,19 +56,49 @@ impl Op for Name {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Type {
+pub enum MonoType {
     Int,
     Bool,
     Unit,
-    Fn(Vec<Type>, Box<Type>),
-    UserDef(Name),
-    TyVar(usize), // unresolved type variable
+
+    Fn(Vec<MonoType>, Box<MonoType>),
+    UserDef(Name, Vec<MonoType>),
+}
+
+#[derive(Debug, Clone, Eq)]
+pub enum PolyType {
+    Fn(Vec<PolyType>, Box<PolyType>),
+    UserDef(Name, Vec<PolyType>),
+
+    NVar(Name), // named type variable
+    Var(usize), // anonymous type variable
+}
+
+impl PartialEq for PolyType {
+    fn eq(&self, other: &Self) -> bool {
+        use PolyType::*;
+        match (self, other) {
+            (NVar(_), NVar(_)) => true,
+            (Var(_), Var(_)) => true,
+            (NVar(_), Var(_)) => true,
+            (Var(_), NVar(_)) => true,
+            (Fn(args1, ret1), Fn(args2, ret2)) => args1 == args2 && ret1 == ret2,
+            (UserDef(n1, args1), UserDef(n2, args2)) => n1 == n2 && args1 == args2,
+            _ => false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Type {
+    Mono(MonoType),
+    Poly(PolyType),
 }
 
 pub fn fresh_tv() -> Type {
     static mut TVAR_COUNTER: usize = 0;
     unsafe {
-        let ret = Type::TyVar(TVAR_COUNTER);
+        let ret = Type::Poly(PolyType::Var(TVAR_COUNTER));
         TVAR_COUNTER += 1;
         ret
     }
@@ -145,5 +175,5 @@ pub struct FnDef {
 pub struct Program {
     pub data_defs: Vec<DataDef>,
     // pub type_defs: Vec<TypeDef>, // TODO: implement later, parser commented
-    pub expr: Option<Expr>,
+    pub expr: Expr,
 }

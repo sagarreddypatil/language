@@ -8,6 +8,7 @@ pub struct Parser {
 
     // map from type constructor to data type name
     ty_cons: HashMap<Name, DataDef>,
+    data_defs: HashMap<Name, Option<DataDef>>,
 }
 
 macro_rules! expect_fail {
@@ -28,6 +29,7 @@ impl Parser {
             position: 0,
 
             ty_cons: HashMap::new(),
+            data_defs: HashMap::new(),
         }
     }
 
@@ -68,41 +70,36 @@ impl Parser {
         }
     }
 
-    fn optional(&mut self, token: TokenKind) {
-        if self.peek() == &token {
-            self.accept();
-        }
-    }
-
-    fn unaccept(&mut self, token: TokenKind) {
-        if self.position > 0 && self.tokens[self.position - 1].kind == token {
-            self.position -= 1;
-        }
-    }
-
-    pub fn parse_program(&mut self) -> Program {
-        let mut program = Program {
-            data_defs: Vec::new(),
-            // type_defs: Vec::new(),
-            expr: None,
-        };
+    pub fn parse_program(mut self) -> Program {
+        // let mut program = Program {
+        //     data_defs: Vec::new(),
+        //     // type_defs: Vec::new(),
+        //     expr: None,
+        // };
 
         while !self.end() {
             match self.peek() {
-                TokenKind::DataDef => program.data_defs.push(self.parse_data_ref()),
-                // TokenKind::TypeDef => program.type_defs.push(self.parse_type_def()),
+                TokenKind::DataDef => self.parse_data_def(),
+                // TokenKind::TypeDef => self.parse_type_def(),
                 _ => break,
             }
         }
 
-        for data_def in &program.data_defs {
-            for cons in &data_def.cons {
-                self.ty_cons.insert(*cons.0, data_def.clone());
-            }
-        }
+        // for data_def in &program.data_defs {
+        //     for cons in &data_def.cons {
+        //         self.ty_cons.insert(*cons.0, data_def.clone());
+        //     }
+        // }
 
-        program.expr = Some(self.parse_expr());
-        program
+        // program.expr = Some(self.parse_expr());
+        // program
+
+        let expr = self.parse_expr();
+
+        Program {
+            data_defs: self.data_defs.into_iter().map(|(_, v)| v.unwrap()).collect(),
+            expr,
+        }
     }
 
     fn parse_otype(&mut self) -> Type {
@@ -399,10 +396,12 @@ impl Parser {
         Simp::Match(Box::new(expr), cases)
     }
 
-    fn parse_data_ref(&mut self) -> DataDef {
+    fn parse_data_def(&mut self) {
         self.expect(TokenKind::DataDef);
         let name = self.expect_name();
         self.expect(TokenKind::Eq);
+
+        self.data_defs.insert(name, None);
 
         let mut cons = HashMap::new();
 
@@ -420,10 +419,13 @@ impl Parser {
             }
         }
 
-        DataDef {
-            name,
-            cons,
-        }
+        let ndef = DataDef {name, cons};
+
+        ndef.cons.iter().for_each(|(k, _v)| {
+            self.ty_cons.insert(*k, ndef.clone());
+        });
+
+        self.data_defs.insert(name, Some(ndef));
     }
 
     fn parse_cons(&mut self) -> (Name, Cons) {
@@ -495,7 +497,13 @@ impl Parser {
                 "int" => Type::Int,
                 "unit" => Type::Unit,
                 "bool" => Type::Bool,
-                _ => Type::UserDef(name),
+                _ => {
+                    if self.ty_cons.contains_key(&name) {
+                        Type::UserDef(name)
+                    } else {
+                        Type::NVar(name)
+                    }
+                }
             };
 
             vec![ty]

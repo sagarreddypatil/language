@@ -1,11 +1,9 @@
-data List = Cons(int, List) | Nil
+data List = Cons(a, List) | Nil
 
 let sorted = fn(list) = match list
     | Nil => true
     | Cons(_, Nil) => true
-    | Cons(x, Cons(y, rest)) => if x <= y
-        sorted(Cons(y, rest))
-        else false
+    | Cons(x, Cons(y, rest)) => x <= y && sorted(Cons(y, rest))
 
 
 let bubble = fn(list) = match list
@@ -27,4 +25,4 @@ let reverse = fn(list) = match list
     | Cons(x, rest) => append(reverse(rest), Cons(x, Nil))
 
 let list = Cons(4, Cons(5, Cons(1, Cons(2, Cons(3, Nil)))))
-reverse(sort((list)))
+sort((list))
