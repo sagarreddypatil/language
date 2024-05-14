@@ -492,9 +492,9 @@ impl Parser {
         } else {
             let name = self.expect_name();
             let ty = match name.0 {
-                "int" => Type::Int,
-                "unit" => Type::Unit,
-                "bool" => Type::Bool,
+                "Int" => Type::Int,
+                "Unit" => Type::Unit,
+                "Bool" => Type::Bool,
                 _ => Type::UserDef(name),
             };
 

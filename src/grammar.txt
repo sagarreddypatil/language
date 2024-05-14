@@ -18,8 +18,8 @@ expr ::= simp                                // idk man
 bop ::= '+' | '-' | '*' | '/' | '%'
 uop ::= '-' | '~'
 
-atom ::= <all inbuilt literals>              // char, bool, int, float
-                                             // list, string, tuple, unit
+atom ::= <all inbuilt literals>              // char, Bool, Int, float
+                                             // list, string, tuple, Unit
 
 atom ::= name                                // variable reference
 atom ::= atom '(' simp (',' simp)* ')'       // function call

@@ -1,4 +1,4 @@
-data List = Cons(int, List) | Nil
+data List = Cons(Int, List) | Nil
 
 let sorted = fn(list) = match list
     | Nil => true
