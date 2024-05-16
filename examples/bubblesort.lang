@@ -10,7 +10,7 @@ let sorted = fn(list) = match list
 
 let bubble = fn(list) = match list
     | Nil => Nil
-    | Cons(x, Nil) => Cons(x, Nil)
+    | Cons(x, Nil) = Cons(x, Nil)
     | Cons(x, Cons(y, rest)) => match x <= y
         | true => Cons(x, bubble(Cons(y, rest)))
         | false => Cons(y, bubble(Cons(x, rest)))

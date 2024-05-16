@@ -1,13 +1,11 @@
 use std::collections::HashMap;
 
+pub fn leak_str(s: String) -> &'static str {
+    Box::leak(Box::new(s)).as_str()
+}
+
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
 pub struct Name(pub &'static str);
-
-impl Name {
-    pub fn from_string_ref(s: &String) -> Name {
-        Name(Box::leak(Box::new(s.clone())).as_str())
-    }
-}
 
 pub trait Op {
     fn valid(&self) -> bool;

@@ -1,8 +1,9 @@
-use crate::tokenizer::*;
 use crate::ast::*;
+use crate::lexer::*;
 use std::collections::HashMap;
 
 pub struct Parser {
+    src: String,
     pub tokens: Vec<Token>,
     position: usize,
 
@@ -10,20 +11,10 @@ pub struct Parser {
     ty_cons: HashMap<Name, DataDef>,
 }
 
-macro_rules! expect_fail {
-    ($expected:expr, $found:expr) => {
-        if $found.kind == TokenKind::EOF {
-            panic!("Unexpected EOF, expected {:?}", $expected)
-        }
-        else {
-            panic!("Expected {:?}, found {:?} at {}", $expected, $found.kind, $found.pos)
-        }
-    };
-}
-
 impl Parser {
-    pub fn new(tokens: Vec<Token>) -> Self {
+    pub fn new(src: String, tokens: Vec<Token>) -> Self {
         Parser {
+            src,
             tokens,
             position: 0,
 
@@ -44,8 +35,8 @@ impl Parser {
         self.tokens.get(self.position).unwrap()
     }
 
-    fn accept(&mut self) -> &Token {
-        let token = self.tokens.get(self.position).unwrap();
+    fn accept(&mut self) -> Token {
+        let token = *self.tokens.get(self.position).unwrap();
         self.position += 1;
 
         token
@@ -54,17 +45,17 @@ impl Parser {
     fn expect(&mut self, token: TokenKind) {
         let next = self.accept();
         if next.kind != token {
-            expect_fail!(token, next);
+            // expect_fail!(self, token, next);
+            panic!("Expected {:?}, got {:?}", token, next);
         }
     }
 
     fn expect_name(&mut self) -> Name {
         let token = self.accept();
         match &token.kind {
-            TokenKind::Name(name) => {
-                Name::from_string_ref(&name)
-            },
-            _ => expect_fail!("Name", token),
+            TokenKind::Ident(name) => Name(name),
+            // _ => expect_fail!(self, "Name", token),
+            _ => panic!("Expected name, got {:?}", token),
         }
     }
 
@@ -89,7 +80,7 @@ impl Parser {
 
         while !self.end() {
             match self.peek() {
-                TokenKind::DataDef => program.data_defs.push(self.parse_data_ref()),
+                TokenKind::Keyword("data") => program.data_defs.push(self.parse_data_ref()),
                 // TokenKind::TypeDef => program.type_defs.push(self.parse_type_def()),
                 _ => break,
             }
@@ -110,23 +101,23 @@ impl Parser {
             TokenKind::Colon => {
                 self.accept();
                 self.parse_type()
-            },
+            }
             _ => fresh_tv(),
         }
     }
 
     fn parse_expr(&mut self) -> Expr {
         match self.peek() {
-            TokenKind::Let => self.parse_let(),
+            TokenKind::Keyword("let") => self.parse_let(),
             _ => Expr::Simp(self.parse_simp()),
         }
     }
 
     fn parse_let(&mut self) -> Expr {
-        self.expect(TokenKind::Let);
+        self.expect(TokenKind::Keyword("let"));
         let pattern = self.parse_pattern();
 
-        self.expect(TokenKind::Eq);
+        self.expect(TokenKind::Keyword("="));
         let rhs = self.parse_simp();
 
         let body = self.parse_expr();
@@ -136,7 +127,7 @@ impl Parser {
 
     fn parse_pattern(&mut self) -> Pattern {
         match self.peek() {
-            TokenKind::Name(_) => {
+            TokenKind::Ident(_) => {
                 let name = self.expect_name();
 
                 if self.ty_cons.contains_key(&name) {
@@ -147,18 +138,19 @@ impl Parser {
                     let ty = self.parse_otype();
                     Pattern::Var(name, ty)
                 }
-            },
-            TokenKind::Number(n) => {
+            }
+            TokenKind::IntLit(n) => {
                 let n = *n;
                 self.accept();
                 Pattern::Int(n)
-            },
-            TokenKind::Bool(b) => {
+            }
+            TokenKind::BoolLit(b) => {
                 let b = *b;
                 self.accept();
                 Pattern::Bool(b)
-            },
-            _ => expect_fail!("Pattern", self.peek_wpos()),
+            }
+            // _ => expect_fail!(self, "Pattern", self.peek_wpos()),
+            _ => panic!("Expected pattern, got {:?}", self.peek_wpos()),
         }
     }
 
@@ -174,15 +166,16 @@ impl Parser {
                         TokenKind::Comma => {
                             self.accept();
                             pats.push(self.parse_pattern());
-                        },
+                        }
                         TokenKind::PClose => {
                             self.accept();
                             break;
-                        },
-                        _ => expect_fail!("',' or ')'", self.peek_wpos()),
+                        }
+                        // _ => expect_fail!(self, "',' or ')'", self.peek_wpos()),
+                        _ => panic!("Expected ',' or ')', got {:?}", self.peek_wpos()),
                     }
                 }
-            },
+            }
             _ => {}
         }
 
@@ -191,9 +184,9 @@ impl Parser {
 
     fn parse_simp(&mut self) -> Simp {
         match self.peek() {
-            TokenKind::If => self.parse_if(),
-            TokenKind::Match => self.parse_match(),
-            TokenKind::FnDef => self.parse_fndef(),
+            TokenKind::Keyword("if") => self.parse_if(),
+            TokenKind::Keyword("match") => self.parse_match(),
+            TokenKind::Keyword("fn") => self.parse_fndef(),
             TokenKind::BOpen => {
                 self.accept();
                 let expr = self.parse_expr();
@@ -201,7 +194,7 @@ impl Parser {
                 self.expect(TokenKind::BClose);
 
                 Simp::Block(Box::new(expr))
-            },
+            }
             _ => self.parse_simple_ops(0),
         }
     }
@@ -219,34 +212,32 @@ impl Parser {
                     TokenKind::Comma => {
                         self.accept();
                         args.push((self.expect_name(), self.parse_otype()));
-                    },
+                    }
                     TokenKind::PClose => {
                         self.accept();
                         break;
-                    },
-                    _ => expect_fail!("',' or ')'", self.peek_wpos()),
+                    }
+                    // _ => expect_fail!(self, "',' or ')'", self.peek_wpos()),
+                    _ => panic!("Expected ',' or ')', got {:?}", self.peek_wpos()),
                 }
             }
         }
 
         let ret = self.parse_otype();
-        self.expect(TokenKind::Eq);
+        self.expect(TokenKind::Keyword("="));
 
         Simp::FnDef(FnDef {
             args,
             body: Box::new(self.parse_simp()),
             ret,
         })
-
     }
 
     fn parse_simple_ops(&mut self, min_prec: i32) -> Simp {
         let mut lhs = self.parse_utight();
         loop {
             let name = match self.peek() {
-                TokenKind::Name(name) => {
-                    Name::from_string_ref(name)
-                },
+                TokenKind::Ident(name) => Name(name),
                 _ => break,
             };
 
@@ -273,20 +264,20 @@ impl Parser {
             TokenKind::POpen => {
                 let args = self.parse_simp_list();
                 Simp::FnCall(Box::new(lhs), args)
-            },
-            _ => lhs
+            }
+            _ => lhs,
         }
     }
 
     fn parse_utight(&mut self) -> Simp {
         match self.peek() {
-            TokenKind::Name(name) if Name::from_string_ref(name).unary() => {
+            TokenKind::Ident(name) if Name(name).unary() => {
                 let name = self.expect_name();
                 let name = Simp::Ref(name);
 
                 let rest = self.parse_tight();
                 Simp::FnCall(Box::new(name), vec![rest])
-            },
+            }
             _ => self.parse_tight(),
         }
     }
@@ -305,29 +296,29 @@ impl Parser {
 
                     simp
                 }
-            },
-            TokenKind::Name(name)
-            if self.ty_cons.contains_key(&Name::from_string_ref(name)) => {
+            }
+            TokenKind::Ident(name) if self.ty_cons.contains_key(&Name(name)) => {
                 let name = self.expect_name();
                 let vals = self.parse_simp_list();
 
                 Simp::Data(name, vals)
-            },
-            TokenKind::Name(_) => {
+            }
+            TokenKind::Ident(_) => {
                 let name = self.expect_name();
                 Simp::Ref(name)
-            },
-            TokenKind::Number(n) => {
+            }
+            TokenKind::IntLit(n) => {
                 let n = *n;
                 self.accept();
                 Simp::Int(n)
-            },
-            TokenKind::Bool(b) => {
+            }
+            TokenKind::BoolLit(b) => {
                 let b = *b;
                 self.accept();
                 Simp::Bool(b)
-            },
-            _ => expect_fail!("Atom", self.peek_wpos()),
+            }
+            // _ => expect_fail!(self, "Atom", self.peek_wpos()),
+            _ => panic!("Expected atom, got {:?}", self.peek_wpos()),
         }
     }
 
@@ -344,12 +335,13 @@ impl Parser {
                         TokenKind::Comma => {
                             self.accept();
                             slist.push(self.parse_simp());
-                        },
+                        }
                         TokenKind::PClose => {
                             self.accept();
                             break;
-                        },
-                        _ => expect_fail!("',' or ')'", token),
+                        }
+                        // _ => expect_fail!(self, "',' or ')'", token),
+                        _ => panic!("Expected ',' or ')', got {:?}", token),
                     }
                 }
             }
@@ -360,26 +352,26 @@ impl Parser {
     }
 
     fn parse_if(&mut self) -> Simp {
-        self.expect(TokenKind::If);
+        self.expect(TokenKind::Keyword("if"));
         let cond = self.parse_simp();
         let then = self.parse_simp();
 
         let els = match self.peek() {
-            TokenKind::Else => {
+            TokenKind::Keyword("else") => {
                 self.accept();
                 self.parse_simp()
-            },
+            }
             _ => Simp::Unit,
         };
 
-        Simp::Match(Box::new(cond), vec![
-            (Pattern::Bool(true), then),
-            (Pattern::Bool(false), els),
-        ])
+        Simp::Match(
+            Box::new(cond),
+            vec![(Pattern::Bool(true), then), (Pattern::Bool(false), els)],
+        )
     }
 
     fn parse_match(&mut self) -> Simp {
-        self.expect(TokenKind::Match);
+        self.expect(TokenKind::Keyword("match"));
         let expr = self.parse_simp();
 
         let mut cases = Vec::new();
@@ -388,21 +380,25 @@ impl Parser {
                 TokenKind::Pipe => {
                     self.accept();
                     let pattern = self.parse_pattern();
-                    self.expect(TokenKind::FatArrow);
+                    self.expect(TokenKind::Keyword("=>"));
                     let simp = self.parse_simp();
                     cases.push((pattern, simp));
-                },
+                }
                 _ => break,
             }
+        }
+
+        if cases.len() == 0 {
+            panic!("Match statement at {} has no cases", self.peek_wpos());
         }
 
         Simp::Match(Box::new(expr), cases)
     }
 
     fn parse_data_ref(&mut self) -> DataDef {
-        self.expect(TokenKind::DataDef);
+        self.expect(TokenKind::Keyword("data"));
         let name = self.expect_name();
-        self.expect(TokenKind::Eq);
+        self.expect(TokenKind::Keyword("="));
 
         let mut cons = HashMap::new();
 
@@ -415,15 +411,12 @@ impl Parser {
                     self.accept();
                     let con = self.parse_cons();
                     cons.insert(con.0, con.1);
-                },
+                }
                 _ => break,
             }
         }
 
-        DataDef {
-            name,
-            cons,
-        }
+        DataDef { name, cons }
     }
 
     fn parse_cons(&mut self) -> (Name, Cons) {
@@ -433,13 +426,13 @@ impl Parser {
             _ => Vec::new(),
         };
 
-        (tag, Cons {args})
+        (tag, Cons { args })
     }
 
     // fn parse_type_def(&mut self) -> TypeDef {
     //     self.expect(TokenKind::TypeDef);
     //     let name = self.expect_name();
-    //     self.expect(TokenKind::Eq);
+    //     self.expect(TokenKind::Keyword("="));
     //     let ty = self.parse_type();
 
     //     TypeDef {
@@ -450,17 +443,15 @@ impl Parser {
 
     fn parse_type(&mut self) -> Type {
         let mut lhs = self.parse_type_list();
-        if self.peek() == &TokenKind::Arrow {
+        if self.peek() == &TokenKind::Keyword("->") {
             self.accept();
             let rhs = self.parse_type();
 
             Type::Fn(lhs, Box::new(rhs))
-        }
-        else {
+        } else {
             if lhs.len() > 1 {
                 unimplemented!("Tuples")
-            }
-            else {
+            } else {
                 let ty = lhs.pop().unwrap();
                 ty
             }
@@ -479,12 +470,13 @@ impl Parser {
                     TokenKind::Comma => {
                         self.accept();
                         types.push(self.parse_type());
-                    },
+                    }
                     TokenKind::PClose => {
                         self.accept();
                         break;
-                    },
-                    _ => expect_fail!("',' or ')'", self.peek_wpos()),
+                    }
+                    // _ => expect_fail!(self, "',' or ')'", self.peek_wpos()),
+                    _ => panic!("Expected ',' or ')', got {:?}", self.peek_wpos()),
                 }
             }
 
