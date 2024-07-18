@@ -99,7 +99,7 @@ impl Scanner {
                 list: Vec::new(),
             },
 
-            line: 0,
+            line: 1,
             col: 0,
 
             buf: String::new(),
@@ -179,14 +179,6 @@ impl Scanner {
                 },
 
                 ' ' | '\t' => self.parse_buf(),
-
-                // '(' => self.push_single(TokenKind::POpen),
-                // ')' => self.push_single(TokenKind::PClose),
-                // '{' => self.push_single(TokenKind::BOpen),
-                // '}' => self.push_single(TokenKind::BClose),
-                // ',' => self.push_single(TokenKind::Comma),
-                // '|' => self.push_single(TokenKind::Pipe),
-                // ':' => self.push_single(TokenKind::Colon),
 
                 _ => {
                     if let Some(t) = Self::parse_symbol(c) {

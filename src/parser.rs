@@ -3,7 +3,6 @@ use crate::lexer::*;
 use std::collections::HashMap;
 
 pub struct Parser {
-    src: String,
     pub tokens: Vec<Token>,
     position: usize,
 
@@ -12,9 +11,8 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn new(src: String, tokens: Vec<Token>) -> Self {
+    pub fn new(tokens: Vec<Token>) -> Self {
         Parser {
-            src,
             tokens,
             position: 0,
 
@@ -45,7 +43,6 @@ impl Parser {
     fn expect(&mut self, token: TokenKind) {
         let next = self.accept();
         if next.kind != token {
-            // expect_fail!(self, token, next);
             panic!("Expected {:?}, got {:?}", token, next);
         }
     }
@@ -54,20 +51,7 @@ impl Parser {
         let token = self.accept();
         match &token.kind {
             TokenKind::Ident(name) => Name(name),
-            // _ => expect_fail!(self, "Name", token),
             _ => panic!("Expected name, got {:?}", token),
-        }
-    }
-
-    fn optional(&mut self, token: TokenKind) {
-        if self.peek() == &token {
-            self.accept();
-        }
-    }
-
-    fn unaccept(&mut self, token: TokenKind) {
-        if self.position > 0 && self.tokens[self.position - 1].kind == token {
-            self.position -= 1;
         }
     }
 
@@ -149,7 +133,6 @@ impl Parser {
                 self.accept();
                 Pattern::Bool(b)
             }
-            // _ => expect_fail!(self, "Pattern", self.peek_wpos()),
             _ => panic!("Expected pattern, got {:?}", self.peek_wpos()),
         }
     }
@@ -171,7 +154,6 @@ impl Parser {
                             self.accept();
                             break;
                         }
-                        // _ => expect_fail!(self, "',' or ')'", self.peek_wpos()),
                         _ => panic!("Expected ',' or ')', got {:?}", self.peek_wpos()),
                     }
                 }
@@ -217,7 +199,6 @@ impl Parser {
                         self.accept();
                         break;
                     }
-                    // _ => expect_fail!(self, "',' or ')'", self.peek_wpos()),
                     _ => panic!("Expected ',' or ')', got {:?}", self.peek_wpos()),
                 }
             }
@@ -317,7 +298,6 @@ impl Parser {
                 self.accept();
                 Simp::Bool(b)
             }
-            // _ => expect_fail!(self, "Atom", self.peek_wpos()),
             _ => panic!("Expected atom, got {:?}", self.peek_wpos()),
         }
     }
@@ -340,7 +320,6 @@ impl Parser {
                             self.accept();
                             break;
                         }
-                        // _ => expect_fail!(self, "',' or ')'", token),
                         _ => panic!("Expected ',' or ')', got {:?}", token),
                     }
                 }
@@ -475,7 +454,6 @@ impl Parser {
                         self.accept();
                         break;
                     }
-                    // _ => expect_fail!(self, "',' or ')'", self.peek_wpos()),
                     _ => panic!("Expected ',' or ')', got {:?}", self.peek_wpos()),
                 }
             }
