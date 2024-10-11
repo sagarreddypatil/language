@@ -1,56 +1,58 @@
+use logos::Lexer;
+
 use crate::ast::*;
 use crate::lexer::*;
 use std::collections::HashMap;
+use std::iter::Peekable;
 
-pub struct Parser {
-    pub tokens: Vec<Token>,
-    position: usize,
-
+pub struct Parser<'a> {
+    pub lexer: Peekable<Lexer<'a, Token>>,
     // map from type constructor to data type name
     ty_cons: HashMap<Name, DataDef>,
 }
 
-impl Parser {
-    pub fn new(tokens: Vec<Token>) -> Self {
+impl<'a> Parser<'a> {
+    pub fn new(lexer: Lexer<'a, Token>) -> Self {
         Parser {
-            tokens,
-            position: 0,
-
+            lexer: lexer.peekable(),
             ty_cons: HashMap::new(),
         }
     }
 
-    fn end(&self) -> bool {
-        // last token is always EOF
-        self.position >= self.tokens.len() - 1
+    fn end(&mut self) -> bool {
+        let peek = self.lexer.peek();
+        let peek = peek.map(|x| x.is_ok());
+
+        match peek {
+            Some(true) => false,
+            _ => true,
+        }
     }
 
-    fn peek(&self) -> &TokenKind {
-        &self.tokens.get(self.position).unwrap().kind
-    }
-
-    fn peek_wpos(&self) -> &Token {
-        self.tokens.get(self.position).unwrap()
+    fn peek(&mut self) -> &Token {
+        self.lexer.peek().unwrap().as_ref().unwrap()
     }
 
     fn accept(&mut self) -> Token {
-        let token = *self.tokens.get(self.position).unwrap();
-        self.position += 1;
+        let token = self.lexer.next();
+        let token = token.unwrap().unwrap();
 
         token
     }
 
-    fn expect(&mut self, token: TokenKind) {
+    fn expect(&mut self, token: Token) {
         let next = self.accept();
-        if next.kind != token {
+
+        if next != token {
             panic!("Expected {:?}, got {:?}", token, next);
         }
     }
 
     fn expect_name(&mut self) -> Name {
         let token = self.accept();
-        match &token.kind {
-            TokenKind::Ident(name) => Name(name),
+
+        match token {
+            Token::Ident(name) => Name(name),
             _ => panic!("Expected name, got {:?}", token),
         }
     }
@@ -64,15 +66,15 @@ impl Parser {
 
         while !self.end() {
             match self.peek() {
-                TokenKind::Keyword("data") => program.data_defs.push(self.parse_data_ref()),
-                // TokenKind::TypeDef => program.type_defs.push(self.parse_type_def()),
+                Token::Data => program.data_defs.push(self.parse_data_ref()),
+                // Token::TypeDef => program.type_defs.push(self.parse_type_def()),
                 _ => break,
             }
         }
 
         for data_def in &program.data_defs {
             for cons in &data_def.cons {
-                self.ty_cons.insert(*cons.0, data_def.clone());
+                self.ty_cons.insert(cons.0.clone(), data_def.clone());
             }
         }
 
@@ -82,7 +84,7 @@ impl Parser {
 
     fn parse_otype(&mut self) -> Type {
         match self.peek() {
-            TokenKind::Colon => {
+            Token::Colon => {
                 self.accept();
                 self.parse_type()
             }
@@ -92,16 +94,16 @@ impl Parser {
 
     fn parse_expr(&mut self) -> Expr {
         match self.peek() {
-            TokenKind::Keyword("let") => self.parse_let(),
+            Token::Let => self.parse_let(),
             _ => Expr::Simp(self.parse_simp()),
         }
     }
 
     fn parse_let(&mut self) -> Expr {
-        self.expect(TokenKind::Keyword("let"));
+        self.expect(Token::Let);
         let pattern = self.parse_pattern();
 
-        self.expect(TokenKind::Keyword("="));
+        self.expect(Token::Eq);
         let rhs = self.parse_simp();
 
         let body = self.parse_expr();
@@ -111,7 +113,7 @@ impl Parser {
 
     fn parse_pattern(&mut self) -> Pattern {
         match self.peek() {
-            TokenKind::Ident(_) => {
+            Token::Ident(_) => {
                 let name = self.expect_name();
 
                 if self.ty_cons.contains_key(&name) {
@@ -123,38 +125,38 @@ impl Parser {
                     Pattern::Var(name, ty)
                 }
             }
-            TokenKind::IntLit(n) => {
+            Token::Int(n) => {
                 let n = *n;
                 self.accept();
                 Pattern::Int(n)
             }
-            TokenKind::BoolLit(b) => {
+            Token::Bool(b) => {
                 let b = *b;
                 self.accept();
                 Pattern::Bool(b)
             }
-            _ => panic!("Expected pattern, got {:?}", self.peek_wpos()),
+            _ => panic!("Expected pattern, got {:?}", self.peek()),
         }
     }
 
     fn parse_pat_list(&mut self) -> Vec<Pattern> {
         let mut pats = Vec::new();
         match self.peek() {
-            TokenKind::POpen => {
+            Token::POpen => {
                 self.accept();
                 pats.push(self.parse_pattern());
 
                 loop {
                     match self.peek() {
-                        TokenKind::Comma => {
+                        Token::Comma => {
                             self.accept();
                             pats.push(self.parse_pattern());
                         }
-                        TokenKind::PClose => {
+                        Token::PClose => {
                             self.accept();
                             break;
                         }
-                        _ => panic!("Expected ',' or ')', got {:?}", self.peek_wpos()),
+                        _ => panic!("Expected ',' or ')', got {:?}", self.peek()),
                     }
                 }
             }
@@ -166,14 +168,14 @@ impl Parser {
 
     fn parse_simp(&mut self) -> Simp {
         match self.peek() {
-            TokenKind::Keyword("if") => self.parse_if(),
-            TokenKind::Keyword("match") => self.parse_match(),
-            TokenKind::Keyword("fn") => self.parse_fndef(),
-            TokenKind::BOpen => {
+            Token::If => self.parse_if(),
+            Token::Match => self.parse_match(),
+            Token::Fn => self.parse_fndef(),
+            Token::BOpen => {
                 self.accept();
                 let expr = self.parse_expr();
 
-                self.expect(TokenKind::BClose);
+                self.expect(Token::BClose);
 
                 Simp::Block(Box::new(expr))
             }
@@ -183,29 +185,29 @@ impl Parser {
 
     fn parse_fndef(&mut self) -> Simp {
         self.accept();
-        self.expect(TokenKind::POpen);
+        self.expect(Token::POpen);
 
         // parse name of args, comma separated
         let mut args = Vec::new();
-        if self.peek() != &TokenKind::PClose {
+        if self.peek() != &Token::PClose {
             args.push((self.expect_name(), self.parse_otype()));
             loop {
                 match self.peek() {
-                    TokenKind::Comma => {
+                    Token::Comma => {
                         self.accept();
                         args.push((self.expect_name(), self.parse_otype()));
                     }
-                    TokenKind::PClose => {
+                    Token::PClose => {
                         self.accept();
                         break;
                     }
-                    _ => panic!("Expected ',' or ')', got {:?}", self.peek_wpos()),
+                    _ => panic!("Expected ',' or ')', got {:?}", self.peek()),
                 }
             }
         }
 
         let ret = self.parse_otype();
-        self.expect(TokenKind::Keyword("="));
+        self.expect(Token::Eq);
 
         Simp::FnDef(FnDef {
             args,
@@ -218,7 +220,7 @@ impl Parser {
         let mut lhs = self.parse_utight();
         loop {
             let name = match self.peek() {
-                TokenKind::Ident(name) => Name(name),
+                Token::Ident(name) => Name(name.clone()),
                 _ => break,
             };
 
@@ -242,7 +244,7 @@ impl Parser {
         let lhs = self.parse_atom();
 
         match self.peek() {
-            TokenKind::POpen => {
+            Token::POpen => {
                 let args = self.parse_simp_list();
                 Simp::FnCall(Box::new(lhs), args)
             }
@@ -252,7 +254,7 @@ impl Parser {
 
     fn parse_utight(&mut self) -> Simp {
         match self.peek() {
-            TokenKind::Ident(name) if Name(name).unary() => {
+            Token::Ident(name) if Name(name.clone()).unary() => {
                 let name = self.expect_name();
                 let name = Simp::Ref(name);
 
@@ -264,59 +266,60 @@ impl Parser {
     }
 
     fn parse_atom(&mut self) -> Simp {
-        match self.peek() {
-            TokenKind::POpen => {
+        let peeked = self.peek();
+        let peeked: Token = peeked.clone();
+
+        match peeked {
+            Token::POpen => {
                 self.accept();
-                if self.peek() == &TokenKind::PClose {
+                if self.peek() == &Token::PClose {
                     self.accept();
                     Simp::Unit
                 } else {
                     let simp = self.parse_simp();
 
-                    self.expect(TokenKind::PClose);
+                    self.expect(Token::PClose);
 
                     simp
                 }
             }
-            TokenKind::Ident(name) if self.ty_cons.contains_key(&Name(name)) => {
+            Token::Ident(name) if self.ty_cons.contains_key(&Name(name.clone())) => {
                 let name = self.expect_name();
                 let vals = self.parse_simp_list();
 
                 Simp::Data(name, vals)
             }
-            TokenKind::Ident(_) => {
+            Token::Ident(_) => {
                 let name = self.expect_name();
                 Simp::Ref(name)
             }
-            TokenKind::IntLit(n) => {
-                let n = *n;
+            Token::Int(n) => {
                 self.accept();
                 Simp::Int(n)
             }
-            TokenKind::BoolLit(b) => {
-                let b = *b;
+            Token::Bool(b) => {
                 self.accept();
                 Simp::Bool(b)
             }
-            _ => panic!("Expected atom, got {:?}", self.peek_wpos()),
+            _ => panic!("Expected atom, got {:?}", self.peek()),
         }
     }
 
     fn parse_simp_list(&mut self) -> Vec<Simp> {
         let mut slist = Vec::new();
         match self.peek() {
-            TokenKind::POpen => {
+            Token::POpen => {
                 self.accept();
                 slist.push(self.parse_simp());
 
                 loop {
-                    let token = self.peek_wpos();
-                    match token.kind {
-                        TokenKind::Comma => {
+                    let token = self.peek();
+                    match token {
+                        Token::Comma => {
                             self.accept();
                             slist.push(self.parse_simp());
                         }
-                        TokenKind::PClose => {
+                        Token::PClose => {
                             self.accept();
                             break;
                         }
@@ -331,12 +334,12 @@ impl Parser {
     }
 
     fn parse_if(&mut self) -> Simp {
-        self.expect(TokenKind::Keyword("if"));
+        self.expect(Token::If);
         let cond = self.parse_simp();
         let then = self.parse_simp();
 
         let els = match self.peek() {
-            TokenKind::Keyword("else") => {
+            Token::Else => {
                 self.accept();
                 self.parse_simp()
             }
@@ -350,16 +353,16 @@ impl Parser {
     }
 
     fn parse_match(&mut self) -> Simp {
-        self.expect(TokenKind::Keyword("match"));
+        self.expect(Token::Match);
         let expr = self.parse_simp();
 
         let mut cases = Vec::new();
         loop {
             match self.peek() {
-                TokenKind::Pipe => {
+                Token::Pipe => {
                     self.accept();
                     let pattern = self.parse_pattern();
-                    self.expect(TokenKind::Keyword("=>"));
+                    self.expect(Token::FatArrow);
                     let simp = self.parse_simp();
                     cases.push((pattern, simp));
                 }
@@ -368,16 +371,16 @@ impl Parser {
         }
 
         if cases.len() == 0 {
-            panic!("Match statement at {} has no cases", self.peek_wpos());
+            panic!("Match statement at {:?} has no cases", self.peek());
         }
 
         Simp::Match(Box::new(expr), cases)
     }
 
     fn parse_data_ref(&mut self) -> DataDef {
-        self.expect(TokenKind::Keyword("data"));
+        self.expect(Token::Data);
         let name = self.expect_name();
-        self.expect(TokenKind::Keyword("="));
+        self.expect(Token::Eq);
 
         let mut cons = HashMap::new();
 
@@ -386,7 +389,7 @@ impl Parser {
 
         loop {
             match self.peek() {
-                TokenKind::Pipe => {
+                Token::Pipe => {
                     self.accept();
                     let con = self.parse_cons();
                     cons.insert(con.0, con.1);
@@ -401,7 +404,7 @@ impl Parser {
     fn parse_cons(&mut self) -> (Name, Cons) {
         let tag = self.expect_name();
         let args = match self.peek() {
-            TokenKind::POpen => self.parse_type_list(),
+            Token::POpen => self.parse_type_list(),
             _ => Vec::new(),
         };
 
@@ -409,9 +412,9 @@ impl Parser {
     }
 
     // fn parse_type_def(&mut self) -> TypeDef {
-    //     self.expect(TokenKind::TypeDef);
+    //     self.expect(Token::TypeDef);
     //     let name = self.expect_name();
-    //     self.expect(TokenKind::Keyword("="));
+    //     self.expect(Token::Keyword("="));
     //     let ty = self.parse_type();
 
     //     TypeDef {
@@ -422,7 +425,7 @@ impl Parser {
 
     fn parse_type(&mut self) -> Type {
         let mut lhs = self.parse_type_list();
-        if self.peek() == &TokenKind::Keyword("->") {
+        if self.peek() == &Token::Arrow {
             self.accept();
             let rhs = self.parse_type();
 
@@ -438,7 +441,7 @@ impl Parser {
     }
 
     fn parse_type_list(&mut self) -> Vec<Type> {
-        if self.peek() == &TokenKind::POpen {
+        if self.peek() == &Token::POpen {
             self.accept();
 
             let mut types = Vec::new();
@@ -446,22 +449,22 @@ impl Parser {
 
             loop {
                 match self.peek() {
-                    TokenKind::Comma => {
+                    Token::Comma => {
                         self.accept();
                         types.push(self.parse_type());
                     }
-                    TokenKind::PClose => {
+                    Token::PClose => {
                         self.accept();
                         break;
                     }
-                    _ => panic!("Expected ',' or ')', got {:?}", self.peek_wpos()),
+                    _ => panic!("Expected ',' or ')', got {:?}", self.peek()),
                 }
             }
 
             types
         } else {
             let name = self.expect_name();
-            let ty = match name.0 {
+            let ty = match name.0.as_str() {
                 "Int" => Type::Int,
                 "Unit" => Type::Unit,
                 "Bool" => Type::Bool,

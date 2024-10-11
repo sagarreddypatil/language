@@ -87,25 +87,25 @@ impl TyEnv {
 
         TyEnv {
             env: HashMap::from([
-                (Name("+"), int_infix_op.clone()),
-                (Name("-"), int_infix_op.clone()),
-                (Name("*"), int_infix_op.clone()),
-                (Name("/"), int_infix_op.clone()),
-                (Name("%"), int_infix_op.clone()),
-                (Name("~"), int_unary_op.clone()),
+                (Name(String::from("+")), int_infix_op.clone()),
+                (Name(String::from("-")), int_infix_op.clone()),
+                (Name(String::from("*")), int_infix_op.clone()),
+                (Name(String::from("/")), int_infix_op.clone()),
+                (Name(String::from("%")), int_infix_op.clone()),
+                (Name(String::from("~")), int_unary_op.clone()),
 
-                (Name("=="), int_bool_op.clone()),
-                (Name("!="), int_bool_op.clone()),
-                (Name("<"), int_bool_op.clone()),
-                (Name(">"), int_bool_op.clone()),
-                (Name("<="), int_bool_op.clone()),
-                (Name(">="), int_bool_op.clone()),
+                (Name(String::from("==")), int_bool_op.clone()),
+                (Name(String::from("!=")), int_bool_op.clone()),
+                (Name(String::from("<")), int_bool_op.clone()),
+                (Name(String::from(">")), int_bool_op.clone()),
+                (Name(String::from("<=")), int_bool_op.clone()),
+                (Name(String::from(">=")), int_bool_op.clone()),
 
-                (Name("&&"), bool_bool_op.clone()),
-                (Name("||"), bool_bool_op.clone()),
-                (Name("!"), bool_unary_op.clone()),
+                (Name(String::from("&&")), bool_bool_op.clone()),
+                (Name(String::from("||")), bool_bool_op.clone()),
+                (Name(String::from("!")), bool_unary_op.clone()),
 
-                (Name("println"), Type::Fn(vec![Type::Int], Box::new(Type::Unit))),
+                (Name(String::from("println")), Type::Fn(vec![Type::Int], Box::new(Type::Unit))),
             ]),
         }
     }
@@ -283,7 +283,7 @@ impl TypeChecker {
                     x_out.push(TyConstraint(t_pat, con.clone()));
                 }
 
-                (Type::UserDef(datadef.name), x_out)
+                (Type::UserDef(datadef.name.clone()), x_out)
             }
         }
     }
@@ -403,7 +403,7 @@ fn apply_subst_expr(subst: &TySubst, expr: Expr) -> Expr {
 fn apply_subst_simp(subst: &TySubst, simp: Simp) -> Simp {
     match simp {
         Simp::FnDef(f) => {
-            let new_args = f.args.iter().map(|(n, t)| (*n, subst.apply(t.clone()))).collect();
+            let new_args = f.args.iter().map(|(n, t)| (n.clone(), subst.apply(t.clone()))).collect();
             let new_body = apply_subst_simp(subst, *f.body);
             let new_ret = subst.apply(f.ret.clone());
             Simp::FnDef(FnDef {

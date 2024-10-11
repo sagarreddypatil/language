@@ -6,6 +6,8 @@ mod builtins;
 mod interp;
 mod display_impls;
 
+use logos::Logos;
+
 use crate::lexer::*;
 use crate::parser::*;
 use crate::checker::*;
@@ -16,11 +18,13 @@ fn main() {
 
     let prog = std::fs::read_to_string(file_name.clone()).unwrap();
 
-    let mut scanner = Scanner::new(prog.to_string());
-    scanner.tokenize();
-    // println!("{}", scanner.tokens);
+    let lexer = Token::lexer(prog.as_str());
+    // println!("----- Lexer -----");
+    // for token in lexer.clone() {
+    //     println!("{:?}", token);
+    // }
 
-    let mut parser = Parser::new(scanner.tokens.list);
+    let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
     // println!("{}", &program);
 

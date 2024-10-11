@@ -1,11 +1,7 @@
 use std::collections::HashMap;
 
-pub fn leak_str(s: String) -> &'static str {
-    Box::leak(Box::new(s)).as_str()
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
-pub struct Name(pub &'static str);
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+pub struct Name(pub String);
 
 pub trait Op {
     fn valid(&self) -> bool;
@@ -16,7 +12,7 @@ pub trait Op {
 
 impl Op for Name {
     fn valid(&self) -> bool {
-        match self.0 {
+        match self.0.as_str() {
             "+" | "-" | "*" | "/" | "%" | "~" => true,
             "==" | "!=" | "<" | ">" | "<=" | ">=" => true,
             "&&" | "||" => true,
@@ -26,7 +22,7 @@ impl Op for Name {
     }
 
     fn prec(&self) -> i32 {
-        match self.0 {
+        match self.0.as_str() {
             "+" | "-" => 1,
             "*" | "/" | "%" => 2,
             "==" | "!=" | "<" | ">" | "<=" | ">=" => 0,
@@ -37,14 +33,14 @@ impl Op for Name {
     }
 
     fn assoc(&self) -> i32 {
-        match self.0 {
+        match self.0.as_str() {
             "+" | "-" | "*" | "/" | "%" => 1,
             _ => 1,
         }
     }
 
     fn unary(&self) -> bool {
-        match self.0 {
+        match self.0.as_str() {
             // "-" | "~" => true,
             "~" => true,
             "!" => true,
@@ -103,7 +99,7 @@ impl Pattern {
     pub fn bindings(&self) -> Vec<(Name, Type)> {
         use Pattern::*;
         match self {
-            Var(name, ty) => vec![(*name, ty.clone())],
+            Var(name, ty) => vec![(name.clone(), ty.clone())],
             Int(_) => vec![],
             Bool(_) => vec![],
             Data(_, _, pats) => pats.iter().flat_map(|pat| pat.bindings()).collect(),
