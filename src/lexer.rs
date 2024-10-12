@@ -49,11 +49,13 @@ pub enum Token {
     BClose,
 
     // Identifiers
-    #[regex("([a-zA-Z_<>][a-zA-Z0-9_]*)|==", |lex| lex.slice().to_string())]
+    #[regex("([a-zA-Z_<>][a-zA-Z0-9_]*)|([=<>]{2,})", |lex| lex.slice().to_string())]
     Ident(String),
 
     // comments
     #[regex("//[^\n]*", logos::skip)]
     #[regex("/\\*([^*]|\\*+[^*/])*\\*+/", logos::skip)]
     Comment,
+
+    EOF,
 }

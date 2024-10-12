@@ -30,7 +30,11 @@ impl<'a> Parser<'a> {
     }
 
     fn peek(&mut self) -> &Token {
-        self.lexer.peek().unwrap().as_ref().unwrap()
+        if self.end() {
+            &Token::EOF
+        } else {
+            self.lexer.peek().unwrap().as_ref().unwrap()
+        }
     }
 
     fn accept(&mut self) -> Token {
