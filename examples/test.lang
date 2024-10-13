@@ -1,4 +1,3 @@
-data List = Cons(Int, List) | Nil
-let my_list = Cons(1, Cons(2, Cons(3, Nil)))
-let Cons(x, xs) = my_list
-xs
+match 0
+    | 0 => 1
+    | 1 => 2

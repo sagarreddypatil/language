@@ -49,6 +49,48 @@ impl AstToCps {
         }
     }
 
+    fn match_arms(&mut self, val: Name, mut arms: Vec<(Pattern, Simp)>, ret: Name) -> CpsExpr {
+        // match val with arms, then call continuation ret with the result of the expression
+        assert!(arms.len() > 0);
+
+        if arms.len() == 1 {
+            // no match now is invalid
+            let no_match = Name("halt".to_string());
+            let (pat, simp) = arms.remove(0);
+
+            let body = self.lower_simp(
+                simp,
+                Box::new(move |_, simp| CpsExpr::AppC {
+                    cnt: ret.clone(),
+                    args: vec![simp],
+                }),
+            );
+            self.lower_pattern_match(pat, val, body, no_match)
+        } else {
+            let (pat, simp) = arms.remove(0);
+
+            let no_match = self.fresh("m_alt".to_string());
+            let no_match_cont = CntDef {
+                name: no_match.clone(),
+                args: vec![],
+                body: self.match_arms(val.clone(), arms, ret.clone()),
+            };
+
+            let body = self.lower_simp(
+                simp,
+                Box::new(move |_, simp| CpsExpr::AppC {
+                    cnt: ret.clone(),
+                    args: vec![simp],
+                }),
+            );
+
+            CpsExpr::Cnts {
+                cnts: vec![no_match_cont],
+                body: Box::new(self.lower_pattern_match(pat, val, body, no_match)),
+            }
+        }
+    }
+
     fn lower_simp(&mut self, simp: Simp, ctx: Context) -> CpsExpr {
         use Simp::*;
         match simp {
@@ -75,7 +117,24 @@ impl AstToCps {
                     body: Box::new(ctx(self, anon)),
                 }
             }
-            Match(simp, arms) => self.lower_simp(*simp, Box::new(|s, simp| unimplemented!())),
+            Match(simp, arms) => self.lower_simp(
+                *simp,
+                Box::new(|s, simp| {
+                    let match_after = s.fresh("match_after".to_string());
+                    let matched = s.fresh("matched".to_string());
+
+                    let match_after_cont = CntDef {
+                        name: match_after.clone(),
+                        args: vec![matched.clone()],
+                        body: ctx(s, matched),
+                    };
+
+                    CpsExpr::Cnts {
+                        cnts: vec![match_after_cont],
+                        body: Box::new(s.match_arms(simp, arms, match_after)),
+                    }
+                }),
+            ),
             FnCall(lhs, rhs) => {
                 let lhs = *lhs;
 
@@ -143,20 +202,24 @@ impl AstToCps {
                 let desc = Name(format!("d{}", tag));
                 let data = self.fresh(format!("data_{}", name));
 
-                self.simp_list(args, Box::new(move |s, args| {
-                    CpsExpr::Const {
-                        name: desc.clone(),
-                        value: LitHigh::Int(tag),
-                        body: Box::new(CpsExpr::Prim {
-                            name: data.clone(),
-                            op: Name("data".to_string()),
+                self.simp_list(
+                    args,
+                    Box::new(move |s, args| {
+                        CpsExpr::Const {
+                            name: desc.clone(),
+                            value: LitHigh::Int(tag),
+                            body: Box::new(CpsExpr::Prim {
+                                name: data.clone(),
+                                op: Name("data".to_string()),
 
-                            // args is desc, ...args
-                            args: vec![desc].into_iter().chain(args).collect(),
-                            body: Box::new(ctx(s, data)),
-                        })
-                    }
-                }), vec![])
+                                // args is desc, ...args
+                                args: vec![desc].into_iter().chain(args).collect(),
+                                body: Box::new(ctx(s, data)),
+                            }),
+                        }
+                    }),
+                    vec![],
+                )
             }
             _ => unimplemented!(),
         }
@@ -183,7 +246,13 @@ impl AstToCps {
         }
     }
 
-    fn data_fields(&mut self, data: Name, num_fields: usize, ctx: VecContext, mut acc: Vec<Name>) -> CpsExpr {
+    fn data_fields(
+        &mut self,
+        data: Name,
+        num_fields: usize,
+        ctx: VecContext,
+        mut acc: Vec<Name>,
+    ) -> CpsExpr {
         if acc.len() == num_fields {
             ctx(self, acc)
         } else {
@@ -201,7 +270,6 @@ impl AstToCps {
                     body: Box::new(self.data_fields(data, num_fields, ctx, acc)),
                 }),
             }
-
         }
     }
 
@@ -267,9 +335,12 @@ impl AstToCps {
                     args: vec![],
                     // if good, we need to check subpatterns
                     // body: self.pat_list(pats, vec![], body, no_match.clone()),
-                    body: self.data_fields(val.clone(), pats.len(), Box::new(move |s, fields| {
-                        s.pat_list(pats, fields, body, no_match_2)
-                    }), vec![]),
+                    body: self.data_fields(
+                        val.clone(),
+                        pats.len(),
+                        Box::new(move |s, fields| s.pat_list(pats, fields, body, no_match_2)),
+                        vec![],
+                    ),
                 };
 
                 // otherwise, we directly jump to no_match
