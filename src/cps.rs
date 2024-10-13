@@ -166,7 +166,7 @@ impl<Lit: Display> Display for CpsExpr<Lit> {
                         assert!(args.len() == 1);
                         write!(
                             f,
-                            "if ({} {}) {}() else {}()",
+                            "if ({} {}) {{ {}() }} else {{ {}() }}",
                             op,
                             args.iter()
                                 .map(|a| a.to_string())
@@ -179,14 +179,14 @@ impl<Lit: Display> Display for CpsExpr<Lit> {
                         assert!(args.len() == 2);
                         write!(
                             f,
-                            "if ({} {} {}) {}() else {}()",
+                            "if ({} {} {}) {{ {}() }} else {{ {}() }}",
                             args[0], op, args[1], tr, fl
                         )
                     }
                 } else {
                     write!(
                         f,
-                        "if ({}({})) {}() else {}()",
+                        "if ({}({})) {{ {}() }} else {{ {}() }}",
                         op,
                         args.iter()
                             .map(|a| a.to_string())

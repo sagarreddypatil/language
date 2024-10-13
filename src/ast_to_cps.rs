@@ -363,7 +363,7 @@ impl AstToCps {
                             cnts: vec![good_cnt],
                             body: Box::new(CpsExpr::If {
                                 op: Name("==".to_string()),
-                                args: vec![desc, val],
+                                args: vec![desc, val_desc],
                                 t: good,
                                 f: no_match,
                             }),
