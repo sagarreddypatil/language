@@ -191,6 +191,10 @@ impl AstToCps {
                     body: Box::new(ctx(self, name)),
                 }
             }
+            Bool(b) => {
+                let n = if b { 1 } else { 0 };
+                self.lower_simp(Int(n), ctx)
+            }
             Data(name, args) => {
                 let data_def = self
                     .data_defs
@@ -334,13 +338,16 @@ impl AstToCps {
                     name: good.clone(),
                     args: vec![],
                     // if good, we need to check subpatterns
-                    // body: self.pat_list(pats, vec![], body, no_match.clone()),
-                    body: self.data_fields(
-                        val.clone(),
-                        pats.len(),
-                        Box::new(move |s, fields| s.pat_list(pats, fields, body, no_match_2)),
-                        vec![],
-                    ),
+                    body: if pats.len() == 0 {
+                        body
+                    } else {
+                        self.data_fields(
+                            val.clone(),
+                            pats.len(),
+                            Box::new(move |s, fields| s.pat_list(pats, fields, body, no_match_2)),
+                            vec![],
+                        )
+                    },
                 };
 
                 // otherwise, we directly jump to no_match

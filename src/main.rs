@@ -36,10 +36,10 @@ fn main() {
     let program = TypeChecker::new().infer(program);
     println!("{}", program);
 
-    // println!("----- Interpreter -----");
+    println!("----- Tree Interpreter -----");
 
-    // let output = interp::eval_prog(&program);
-    // println!("{}", output);
+    let output = interp::eval_prog(&program);
+    println!("{}", output);
 
     println!("----- CPS Lowering -----");
     let cps = AstToCps::convert(program);

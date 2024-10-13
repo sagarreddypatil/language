@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display};
+use std::collections::HashMap;
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct Name(pub String);
