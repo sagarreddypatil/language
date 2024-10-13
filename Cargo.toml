@@ -8,8 +8,6 @@ edition = "2021"
 [dependencies]
 logos = "0.14.2"
 phf = { version = "0.11.2", features = ["macros"] }
-serde = { version = "1.0.210", features = ["derive"] }
-serde-lexpr = "0.1.3"
 
 [profile.release]
 # panic = "abort"

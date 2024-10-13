@@ -1,129 +1,63 @@
-use std::fmt::Display;
-use serde_lexpr::to_string;
-use serde::{Serialize, Deserialize};
 use crate::ast::Name;
+use std::fmt::Display;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LitHigh {
     Int(i64),
-    Data(i64, Vec<Name>), // i64 is the discriminator, i.e. index of the constructor
 }
 
-impl Display for LitHigh {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        // s-expressions
-        use LitHigh::*;
-        match self {
-            Int(n) => write!(f, "{}", n),
-            Data(d, args) => {
-                write!(f, "({}", d)?;
-                for arg in args {
-                    write!(f, " {}", arg)?;
-                }
-                write!(f, ")")
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CpsExpr<Lit> {
-    Const { name: Name, value: Lit, body: Box<CpsExpr<Lit>> },
-    Prim { name: Name, op: Name, args: Vec<Name>, body: Box<CpsExpr<Lit>> },
+    Const {
+        name: Name,
+        value: Lit,
+        body: Box<CpsExpr<Lit>>,
+    },
+    Prim {
+        name: Name,
+        op: Name,
+        args: Vec<Name>,
+        body: Box<CpsExpr<Lit>>,
+    },
 
-    Cnts { cnts: Vec<CntDef<Lit>>, body: Box<CpsExpr<Lit>> },
-    Funs { funs: Vec<FunDef<Lit>>, body: Box<CpsExpr<Lit>> },
+    Cnts {
+        cnts: Vec<CntDef<Lit>>,
+        body: Box<CpsExpr<Lit>>,
+    },
+    Funs {
+        funs: Vec<FunDef<Lit>>,
+        body: Box<CpsExpr<Lit>>,
+    },
 
-    AppC { cnt: Name, args: Vec<Name> },
-    AppF { fun: Name, ret: Name, args: Vec<Name> },
+    AppC {
+        cnt: Name,
+        args: Vec<Name>,
+    },
+    AppF {
+        fun: Name,
+        ret: Name,
+        args: Vec<Name>,
+    },
 
-    If { op: Name, args: Vec<Name>, t: Name, f: Name },
+    If {
+        op: Name,
+        args: Vec<Name>,
+        t: Name,
+        f: Name,
+    },
 
     // Continuation defining the program end
     Halt(Name),
 }
 
-fn lispify_vec<T: Display>(v: &Vec<T>) -> String {
-    let mut s = String::new();
-    for (i, item) in v.iter().enumerate() {
-        if i > 0 {
-            s.push(' ');
-        }
-        s.push_str(&format!("{}", item));
-    }
-    s
-}
-
-impl Display for CpsExpr<LitHigh> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // s-expressions
-        use CpsExpr::*;
-        match self {
-            Const { name, value, body } => write!(f, "(letc ({} {}) {})", name, value, body),
-            Prim { name, op, args, body } => write!(f, "(letp {} ({} {}) {})", name, op, lispify_vec(args), body),
-
-            Cnts { cnts, body } => {
-                write!(f, "(cnts ")?;
-                for cnt in cnts {
-                    write!(f, "{} ", cnt)?;
-                }
-                write!(f, "{}", body)?;
-                write!(f, ")")
-            },
-            Funs { funs, body } => {
-                write!(f, "(funs ")?;
-                for fun in funs {
-                    write!(f, "{} ", fun)?;
-                }
-                write!(f, "{}", body)?;
-                write!(f, ")")
-            },
-
-            AppC { cnt, args } => {
-                write!(f, "(appc {} ", cnt)?;
-                for arg in args {
-                    write!(f, "{} ", arg)?;
-                }
-                write!(f, ")")
-            },
-            AppF { fun, ret, args } => {
-                write!(f, "(appf {} {} ", fun, ret)?;
-                for arg in args {
-                    write!(f, "{} ", arg)?;
-                }
-                write!(f, ")")
-            },
-
-            If { op, args, t: tr, f: fl } => write!(f, "(if {} {} {} {})", op, args.len(), tr, fl),
-
-            Halt(val) => write!(f, "(halt {})", val),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CntDef<Lit> {
     pub name: Name,
     pub args: Vec<Name>,
     pub body: CpsExpr<Lit>,
 }
 
-impl Display for CntDef<LitHigh> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "(defcnt {} (", self.name)?;
-        for (i, arg) in self.args.iter().enumerate() {
-            if i > 0 {
-                write!(f, " ")?;
-            }
-            write!(f, "{}", arg)?;
-        }
-        write!(f, ") ")?;
-        write!(f, "{}", self.body)?;
-        write!(f, ")")
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FunDef<Lit> {
     pub name: Name,
     pub ret: Name,
@@ -131,17 +65,125 @@ pub struct FunDef<Lit> {
     pub body: CpsExpr<Lit>,
 }
 
-impl Display for FunDef<LitHigh> {
+impl Display for LitHigh {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "(deffun {} {} (", self.name, self.ret)?;
-        for (i, arg) in self.args.iter().enumerate() {
-            if i > 0 {
-                write!(f, " ")?;
-            }
-            write!(f, "{}", arg)?;
+        match self {
+            LitHigh::Int(n) => write!(f, "{}", n),
         }
-        write!(f, ") ")?;
-        write!(f, "{}", self.body)?;
-        write!(f, ")")
+    }
+}
+
+impl<Lit: Display> Display for CpsExpr<Lit> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        use CpsExpr::*;
+
+        match self {
+            Const { name, value, body } => write!(f, "const {} = {};\n{}", name, value, body),
+            Prim {
+                name,
+                op,
+                args,
+                body,
+            } => write!(
+                f,
+                "let {} = ({} {});\n{}",
+                name,
+                op,
+                args.iter()
+                    .map(|a| a.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" "),
+                body
+            ),
+            Cnts { cnts, body } => {
+                let cnts_str = cnts
+                    .iter()
+                    .map(|cnt| format!("{}", cnt))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                write!(f, "{}\n{}", cnts_str, body)
+            }
+            Funs { funs, body } => {
+                let funs_str = funs
+                    .iter()
+                    .map(|fun| format!("{}", fun))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                write!(f, "{}\n{}", funs_str, body)
+            }
+            AppC { cnt, args } => write!(
+                f,
+                "{}({})",
+                cnt,
+                args.iter()
+                    .map(|a| a.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            AppF { fun, ret, args } => write!(
+                f,
+                "{}({}, {})",
+                fun,
+                ret,
+                args.iter()
+                    .map(|a| a.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            If { op, args, t: tr, f: fl } => write!(
+                f,
+                "if ({} {}) then {} else {}",
+                op,
+                args.iter()
+                    .map(|a| a.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" "),
+                tr,
+                fl
+            ),
+            Halt(name) => write!(f, "halt({})", name),
+        }
+    }
+}
+
+impl<Lit: Display> Display for CntDef<Lit> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "cnt {}({}) {{\n{}\n}}",
+            self.name,
+            self.args
+                .iter()
+                .map(|a| a.to_string())
+                .collect::<Vec<_>>()
+                .join(", "),
+            // indent body
+            self.body.to_string()
+                .lines()
+                .map(|l| format!("    {}", l))
+                .collect::<Vec<_>>()
+                .join("\n")
+        )
+    }
+}
+
+impl<Lit: Display> Display for FunDef<Lit> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "fn {}({}) {{\n{}\n}}",
+            self.name,
+            self.args
+                .iter()
+                .map(|a| a.to_string())
+                .collect::<Vec<_>>()
+                .join(", "),
+            // indent body
+            self.body.to_string()
+                .lines()
+                .map(|l| format!("    {}", l))
+                .collect::<Vec<_>>()
+                .join("\n")
+        )
     }
 }

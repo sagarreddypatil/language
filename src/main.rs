@@ -22,10 +22,10 @@ fn main() {
     let prog = std::fs::read_to_string(file_name.clone()).unwrap();
 
     let lexer = Token::lexer(prog.as_str());
-    println!("----- Lexer -----");
-    for token in lexer.clone() {
-        println!("{:?}", token);
-    }
+    // println!("----- Lexer -----");
+    // for token in lexer.clone() {
+    //     println!("{:?}", token);
+    // }
 
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
