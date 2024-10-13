@@ -1,6 +1,7 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+#[derive(Debug, Eq, PartialEq, Clone, Hash, Serialize, Deserialize)]
 pub struct Name(pub String);
 
 pub trait Op {

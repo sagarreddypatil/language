@@ -5,7 +5,10 @@ mod ast;
 mod builtins;
 mod interp;
 mod display_impls;
+mod cps;
+mod ast_to_cps;
 
+use ast_to_cps::AstToCps;
 use logos::Logos;
 
 use crate::lexer::*;
@@ -19,10 +22,10 @@ fn main() {
     let prog = std::fs::read_to_string(file_name.clone()).unwrap();
 
     let lexer = Token::lexer(prog.as_str());
-    // println!("----- Lexer -----");
-    // for token in lexer.clone() {
-    //     println!("{:?}", token);
-    // }
+    println!("----- Lexer -----");
+    for token in lexer.clone() {
+        println!("{:?}", token);
+    }
 
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
@@ -33,8 +36,12 @@ fn main() {
     let program = TypeChecker::new().infer(program);
     println!("{}", program);
 
-    println!("----- Interpreter -----");
+    // println!("----- Interpreter -----");
 
-    let output = interp::eval_prog(&program);
-    println!("{}", output);
+    // let output = interp::eval_prog(&program);
+    // println!("{}", output);
+
+    println!("----- CPS Lowering -----");
+    let cps = AstToCps::convert(program);
+    println!("{:#}", cps);
 }

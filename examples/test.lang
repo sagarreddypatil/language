@@ -1,2 +1,2 @@
-let bad = fn(x) = bad(x - 1)
-bad(10)
+let a = (2 + 2)
+a

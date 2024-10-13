@@ -1,0 +1,9 @@
+// this doesn't work, since this language has no mutual recursion support
+
+let dec_odd = fn(n) = dec_even(n - 1)
+
+let dec_even = fn(n) = match n
+    | 0 => 0
+    | _ => dec_odd(n - 1)
+
+dec_even(10)

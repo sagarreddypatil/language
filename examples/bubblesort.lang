@@ -7,7 +7,7 @@ let sorted = fn(list) = match list
         sorted(Cons(y, rest))
         else false
 
-// erm what the flip
+// test comment
 let bubble = fn(list) = match list
     | Nil => Nil
     | Cons(x, Nil) => Cons(x, Nil)
