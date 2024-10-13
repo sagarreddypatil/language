@@ -1,4 +1,4 @@
-use crate::ast::Name;
+use crate::ast::{Name, Op};
 use std::fmt::Display;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -84,17 +84,42 @@ impl<Lit: Display> Display for CpsExpr<Lit> {
                 op,
                 args,
                 body,
-            } => write!(
-                f,
-                "let {} = ({} {});\n{}",
-                name,
-                op,
-                args.iter()
-                    .map(|a| a.to_string())
-                    .collect::<Vec<_>>()
-                    .join(" "),
-                body
-            ),
+            } => if op.valid() {
+                if op.unary() {
+                    assert!(args.len() == 1);
+                    write!(
+                        f,
+                        "let {} = {} {};\n{}",
+                        name,
+                        op,
+                        args[0],
+                        body
+                    )
+                } else {
+                    assert!(args.len() == 2);
+                    write!(
+                        f,
+                        "let {} = {} {} {};\n{}",
+                        name,
+                        args[0],
+                        op,
+                        args[1],
+                        body
+                    )
+                }
+            } else {
+                write!(
+                    f,
+                    "let {} = {}({});\n{}",
+                    name,
+                    op,
+                    args.iter()
+                        .map(|a| a.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    body
+                )
+            },
             Cnts { cnts, body } => {
                 let cnts_str = cnts
                     .iter()
@@ -130,17 +155,48 @@ impl<Lit: Display> Display for CpsExpr<Lit> {
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
-            If { op, args, t: tr, f: fl } => write!(
-                f,
-                "if ({} {}) then {} else {}",
+            If {
                 op,
-                args.iter()
-                    .map(|a| a.to_string())
-                    .collect::<Vec<_>>()
-                    .join(" "),
-                tr,
-                fl
-            ),
+                args,
+                t: tr,
+                f: fl,
+            } => {
+                if op.valid() {
+                    if op.unary() {
+                        assert!(args.len() == 1);
+                        write!(
+                            f,
+                            "if ({} {}) {}() else {}()",
+                            op,
+                            args.iter()
+                                .map(|a| a.to_string())
+                                .collect::<Vec<_>>()
+                                .join(" "),
+                            tr,
+                            fl
+                        )
+                    } else {
+                        assert!(args.len() == 2);
+                        write!(
+                            f,
+                            "if ({} {} {}) {}() else {}()",
+                            args[0], op, args[1], tr, fl
+                        )
+                    }
+                } else {
+                    write!(
+                        f,
+                        "if ({}({})) {}() else {}()",
+                        op,
+                        args.iter()
+                            .map(|a| a.to_string())
+                            .collect::<Vec<_>>()
+                            .join(" "),
+                        tr,
+                        fl
+                    )
+                }
+            }
             Halt(name) => write!(f, "halt({})", name),
         }
     }
@@ -158,7 +214,8 @@ impl<Lit: Display> Display for CntDef<Lit> {
                 .collect::<Vec<_>>()
                 .join(", "),
             // indent body
-            self.body.to_string()
+            self.body
+                .to_string()
                 .lines()
                 .map(|l| format!("    {}", l))
                 .collect::<Vec<_>>()
@@ -171,15 +228,17 @@ impl<Lit: Display> Display for FunDef<Lit> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "fn {}({}) {{\n{}\n}}",
+            "function {}({}, {}) {{\n{}\n}}",
             self.name,
+            self.ret,
             self.args
                 .iter()
                 .map(|a| a.to_string())
                 .collect::<Vec<_>>()
                 .join(", "),
             // indent body
-            self.body.to_string()
+            self.body
+                .to_string()
                 .lines()
                 .map(|l| format!("    {}", l))
                 .collect::<Vec<_>>()

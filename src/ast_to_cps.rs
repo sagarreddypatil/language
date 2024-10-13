@@ -95,8 +95,8 @@ impl AstToCps {
         use Simp::*;
         match simp {
             FnDef(f) => {
-                let anon = self.fresh("anon".to_string());
-                let retc = self.fresh("retc".to_string());
+                let anon = self.fresh("fn".to_string());
+                let retc = self.fresh("rc".to_string());
                 let args = f.args.iter().map(|(name, _)| name.clone()).collect();
 
                 let lfun = FunDef {
@@ -344,16 +344,22 @@ impl AstToCps {
                 };
 
                 // otherwise, we directly jump to no_match
+                let val_desc = self.fresh("desc".to_string());
                 CpsExpr::Const {
                     name: desc.clone(),
                     value: LitHigh::Int(tag),
-                    body: Box::new(CpsExpr::Cnts {
-                        cnts: vec![good_cnt],
-                        body: Box::new(CpsExpr::If {
-                            op: Name("==".to_string()),
-                            args: vec![desc, val],
-                            t: good,
-                            f: no_match,
+                    body: Box::new(CpsExpr::Prim {
+                        name: val_desc.clone(),
+                        op: Name("desc".to_string()),
+                        args: vec![val.clone()],
+                        body: Box::new(CpsExpr::Cnts {
+                            cnts: vec![good_cnt],
+                            body: Box::new(CpsExpr::If {
+                                op: Name("==".to_string()),
+                                args: vec![desc, val],
+                                t: good,
+                                f: no_match,
+                            }),
                         }),
                     }),
                 }
