@@ -1,7 +1,7 @@
 use crate::ast::{Name, Op};
 use std::fmt::Display;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum LitHigh {
     Int(i64),
 }
@@ -50,11 +50,75 @@ pub enum CpsExpr<Lit> {
     Halt(Name),
 }
 
+pub trait Substitutable {
+    fn subst(&self, subst: Subst) -> Self;
+}
+
+impl<T: Clone> Substitutable for CpsExpr<T> {
+    fn subst(&self, subst: Subst) -> CpsExpr<T> {
+        use CpsExpr::*;
+
+        match self {
+            Const { name, value, body } => Const {
+                name: subst.apply(name),
+                value: value.clone(),
+                body: Box::new(body.subst(subst)),
+            },
+            Prim { name, op, args, body } => Prim {
+                name: subst.apply(name),
+                op: op.clone(),
+                args: args.iter().map(|a| subst.apply(a)).collect(),
+                body: Box::new(body.subst(subst)),
+            },
+            Cnts { cnts, body } => Cnts {
+                cnts: cnts
+                    .iter()
+                    .map(|cnt| cnt.subst(subst.clone()))
+                    .collect::<Vec<_>>(),
+                body: Box::new(body.subst(subst)),
+            },
+            Funs { funs, body } => Funs {
+                funs: funs
+                    .iter()
+                    .map(|fun| fun.subst(subst.clone()))
+                    .collect::<Vec<_>>(),
+                body: Box::new(body.subst(subst)),
+            },
+            AppC { cnt, args } => AppC {
+                cnt: subst.apply(cnt),
+                args: args.iter().map(|a| subst.apply(a)).collect(),
+            },
+            AppF { fun, ret, args } => AppF {
+                fun: subst.apply(fun),
+                ret: subst.apply(ret),
+                args: args.iter().map(|a| subst.apply(a)).collect(),
+            },
+            If { op, args, t, f } => If {
+                op: subst.apply(op),
+                args: args.iter().map(|a| subst.apply(a)).collect(),
+                t: subst.apply(t),
+                f: subst.apply(f),
+            },
+            Halt(name) => Halt(subst.apply(name)),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct CntDef<Lit> {
     pub name: Name,
     pub args: Vec<Name>,
     pub body: CpsExpr<Lit>,
+}
+
+impl<T: Clone> Substitutable for CntDef<T> {
+    fn subst(&self, subst: Subst) -> CntDef<T> {
+        CntDef {
+            name: subst.apply(&self.name),
+            args: self.args.iter().map(|a| subst.apply(a)).collect(),
+            body: self.body.subst(subst),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -63,6 +127,52 @@ pub struct FunDef<Lit> {
     pub ret: Name,
     pub args: Vec<Name>,
     pub body: CpsExpr<Lit>,
+}
+
+impl<T: Clone> Substitutable for FunDef<T> {
+    fn subst(&self, subst: Subst) -> FunDef<T> {
+        FunDef {
+            name: subst.apply(&self.name),
+            ret: subst.apply(&self.ret),
+            args: self.args.iter().map(|a| subst.apply(a)).collect(),
+            body: self.body.subst(subst),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Subst {
+    pub map: std::collections::HashMap<Name, Name>,
+}
+
+impl Subst {
+    pub fn new() -> Self {
+        Self {
+            map: std::collections::HashMap::new(),
+        }
+    }
+
+    pub fn one(from: Name, to: Name) -> Self {
+        assert!(from != to);
+
+        let mut map = std::collections::HashMap::new();
+        map.insert(from, to);
+        Self { map }
+    }
+
+    pub fn insert(&mut self, key: Name, value: Name) {
+        self.map.insert(key, value);
+    }
+
+    pub fn apply(&self, name: &Name) -> Name {
+        let mut name = name;
+
+        while self.map.contains_key(name) {
+            name = &self.map[name];
+        }
+
+        name.clone()
+    }
 }
 
 impl Display for LitHigh {

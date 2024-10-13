@@ -7,9 +7,12 @@ mod interp;
 mod display_impls;
 mod cps;
 mod ast_to_cps;
+mod passes;
 
 use ast_to_cps::AstToCps;
 use logos::Logos;
+use passes::RemoveDupConsts;
+use passes::TreePass;
 
 use crate::lexer::*;
 use crate::parser::*;
@@ -43,5 +46,11 @@ fn main() {
 
     println!("----- CPS Lowering -----");
     let cps = AstToCps::convert(program);
+    println!("{:#}", cps);
+
+    println!("----- Optimized CPS -----");
+    let mut remove_dup_const = RemoveDupConsts::new();
+    let cps = remove_dup_const.apply(cps);
+
     println!("{:#}", cps);
 }

@@ -184,7 +184,7 @@ impl AstToCps {
             }
             Ref(name) => ctx(self, name),
             Int(n) => {
-                let name = Name(format!("c{}", n));
+                let name = self.fresh(format!("c{}", n));
                 CpsExpr::Const {
                     name: name.clone(),
                     value: LitHigh::Int(n),
@@ -203,7 +203,7 @@ impl AstToCps {
                     .unwrap();
 
                 let tag = data_def.cons.iter().position(|(n, _)| n == &name).unwrap() as i64;
-                let desc = Name(format!("d{}", tag));
+                let desc = self.fresh(format!("d{}", tag));
                 let data = self.fresh(format!("data_{}", name));
 
                 self.simp_list(
@@ -261,7 +261,7 @@ impl AstToCps {
             ctx(self, acc)
         } else {
             let field = self.fresh(format!("f{}", acc.len()));
-            let idx = Name(format!("i{}", acc.len()));
+            let idx = self.fresh(format!("i{}", acc.len()));
             acc.push(field.clone());
 
             CpsExpr::Const {
@@ -301,7 +301,7 @@ impl AstToCps {
                     body,
                 };
 
-                let desc = Name(format!("p{}", n));
+                let desc = self.fresh(format!("p{}", n));
                 CpsExpr::Const {
                     name: desc.clone(),
                     value: LitHigh::Int(n),
@@ -330,7 +330,7 @@ impl AstToCps {
 
                 let tag = tag_idx as i64;
 
-                let desc = Name(format!("d{}", tag));
+                let desc = self.fresh(format!("d{}", tag));
                 let good = self.fresh("pm_good".to_string());
 
                 let no_match_2 = no_match.clone();
