@@ -3,6 +3,12 @@ use std::collections::HashMap;
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct Name(pub String);
 
+impl Name {
+    pub fn new(s: &str) -> Self {
+        Name(s.to_string())
+    }
+}
+
 pub trait Op {
     fn valid(&self) -> bool;
     fn prec(&self) -> i32;

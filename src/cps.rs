@@ -1,5 +1,5 @@
 use crate::ast::{Name, Op};
-use std::fmt::Display;
+use std::{collections::HashSet, fmt::Display};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum LitHigh {
@@ -64,7 +64,12 @@ impl<T: Clone> Substitutable for CpsExpr<T> {
                 value: value.clone(),
                 body: Box::new(body.subst(subst)),
             },
-            Prim { name, op, args, body } => Prim {
+            Prim {
+                name,
+                op,
+                args,
+                body,
+            } => Prim {
                 name: subst.apply(name),
                 op: op.clone(),
                 args: args.iter().map(|a| subst.apply(a)).collect(),
@@ -194,42 +199,33 @@ impl<Lit: Display> Display for CpsExpr<Lit> {
                 op,
                 args,
                 body,
-            } => if op.valid() {
-                if op.unary() {
-                    assert!(args.len() == 1);
-                    write!(
-                        f,
-                        "let {} = {} {};\n{}",
-                        name,
-                        op,
-                        args[0],
-                        body
-                    )
+            } => {
+                if op.valid() {
+                    if op.unary() {
+                        assert!(args.len() == 1);
+                        write!(f, "let {} = {} {};\n{}", name, op, args[0], body)
+                    } else {
+                        assert!(args.len() == 2);
+                        write!(
+                            f,
+                            "let {} = {} {} {};\n{}",
+                            name, args[0], op, args[1], body
+                        )
+                    }
                 } else {
-                    assert!(args.len() == 2);
                     write!(
                         f,
-                        "let {} = {} {} {};\n{}",
+                        "let {} = {}({});\n{}",
                         name,
-                        args[0],
                         op,
-                        args[1],
+                        args.iter()
+                            .map(|a| a.to_string())
+                            .collect::<Vec<_>>()
+                            .join(", "),
                         body
                     )
                 }
-            } else {
-                write!(
-                    f,
-                    "let {} = {}({});\n{}",
-                    name,
-                    op,
-                    args.iter()
-                        .map(|a| a.to_string())
-                        .collect::<Vec<_>>()
-                        .join(", "),
-                    body
-                )
-            },
+            }
             Cnts { cnts, body } => {
                 let cnts_str = cnts
                     .iter()
@@ -309,6 +305,83 @@ impl<Lit: Display> Display for CpsExpr<Lit> {
             }
             Halt(name) => write!(f, "halt({})", name),
         }
+    }
+}
+
+macro_rules! hs_name {
+    ($name:expr) => {
+        &std::collections::HashSet::from([$name.clone()])
+    };
+}
+
+impl<Lit> CpsExpr<Lit> {
+    pub fn len(&self) -> usize {
+        match self {
+            CpsExpr::Const { body, .. } => 1 + body.len(),
+            CpsExpr::Prim { body, .. } => 1 + body.len(),
+            #[rustfmt::skip]
+            CpsExpr::Cnts { cnts, body } => { cnts.iter().map(|cnt| cnt.len()).sum::<usize>() + 1 + body.len() },
+            #[rustfmt::skip]
+            CpsExpr::Funs { funs, body } => { funs.iter().map(|fun| fun.len()).sum::<usize>() + 1 + body.len() },
+            CpsExpr::AppC { .. } => 1,
+            CpsExpr::AppF { .. } => 1,
+            CpsExpr::If { .. } => 1,
+            CpsExpr::Halt(_) => 1,
+        }
+    }
+
+    pub fn free(&self) -> HashSet<Name> {
+        use CpsExpr::*;
+        match self {
+            Const { name, body, .. } => &body.free() - hs_name!(name),
+            Prim { name, op, body, .. } => &(&body.free() - hs_name!(name)) | hs_name!(op),
+            Cnts { cnts, body, .. } => {
+                let cnts_free = cnts
+                    .iter()
+                    .map(|cnt| cnt.free())
+                    .fold(std::collections::HashSet::new(), |acc, free| &acc | &free);
+
+                let cnt_names = cnts.iter().map(|cnt| cnt.name.clone()).collect();
+
+                &(&body.free() | &cnts_free) - &cnt_names
+            }
+            Funs { funs, body, .. } => {
+                let funs_free = funs
+                    .iter()
+                    .map(|fun| fun.free())
+                    .fold(std::collections::HashSet::new(), |acc, free| &acc | &free);
+
+                let fun_names = funs.iter().map(|fun| fun.name.clone()).collect();
+
+                &(&body.free() | &funs_free) - &fun_names
+            }
+            AppC { cnt, args } => hs_name!(cnt) | &args.iter().cloned().collect(),
+            #[rustfmt::skip]
+            AppF { fun, ret, args } => &(hs_name!(fun) | hs_name!(ret)) | &args.iter().cloned().collect(),
+            If { op, args, t, f } => args.iter().chain([op.clone(), t.clone(), f.clone()].iter()).cloned().collect(),
+            Halt(name) => hs_name!(name).clone(),
+        }
+    }
+}
+
+impl<Lit> CntDef<Lit> {
+    pub fn len(&self) -> usize {
+        self.body.len()
+    }
+
+    pub fn free(&self) -> HashSet<Name> {
+        &(&self.body.free() - &self.args.iter().cloned().collect()) - hs_name!(self.name)
+    }
+}
+
+impl<Lit> FunDef<Lit> {
+    pub fn len(&self) -> usize {
+        self.body.len()
+    }
+
+    pub fn free(&self) -> HashSet<Name> {
+        &(&(&self.body.free() - &self.args.iter().cloned().collect()) - hs_name!(self.name))
+            - hs_name!(self.ret)
     }
 }
 

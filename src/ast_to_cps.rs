@@ -69,7 +69,7 @@ impl AstToCps {
         } else {
             let (pat, simp) = arms.remove(0);
 
-            let no_match = self.fresh("m_alt".to_string());
+            let no_match = self.fresh("pm_alt".to_string());
             let no_match_cont = CntDef {
                 name: no_match.clone(),
                 args: vec![],
