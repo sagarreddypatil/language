@@ -11,7 +11,7 @@ mod passes;
 
 use ast_to_cps::AstToCps;
 use logos::Logos;
-use passes::RemoveDupConsts;
+use passes::Shrinking;
 use passes::TreePass;
 
 use crate::lexer::*;
@@ -37,7 +37,7 @@ fn main() {
     println!("----- Type Inference -----");
 
     let program = TypeChecker::new().infer(program);
-    println!("{}", program);
+    // println!("{}", program);
 
     println!("----- Tree Interpreter -----");
 
@@ -45,12 +45,23 @@ fn main() {
     println!("{}", output);
 
     println!("----- CPS Lowering -----");
-    let cps = AstToCps::convert(program);
-    println!("{:#}", cps);
+    let mut cps = AstToCps::convert(program);
+    // println!("{:#}", cps);
 
     println!("----- Optimized CPS -----");
-    let mut remove_dup_const = RemoveDupConsts::new();
-    let cps = remove_dup_const.apply(cps);
+
+    let mut len = cps.len();
+    let mut prev_len = len + 1;
+
+    while len < prev_len {
+        prev_len = len;
+
+        let mut pass = Shrinking::new();
+        cps = pass.apply(cps);
+
+        len = cps.len();
+    }
 
     println!("{:#}", cps);
+    println!("{:#?}", cps.free());
 }

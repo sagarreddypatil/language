@@ -1,3 +1,13 @@
-match 0
-    | 0 => 1
-    | 1 => 2
+data Pair = Pair(Int -> Bool, Int -> Bool)
+
+let Pair(is_even, is_odd) = Pair(
+    fn(x) = match x
+        | 0 => true
+        | _ => is_odd(x - 1),
+
+    fn(x) = match x
+        | 0 => false
+        | _ => is_even(x - 1)
+)
+
+is_even(6)
