@@ -99,6 +99,7 @@ impl<'a> Parser<'a> {
     fn parse_expr(&mut self) -> Expr {
         match self.peek() {
             Token::Let => self.parse_let(),
+            Token::Fn => self.parse_fndef(),
             _ => Expr::Simp(self.parse_simp()),
         }
     }
@@ -174,7 +175,6 @@ impl<'a> Parser<'a> {
         match self.peek() {
             Token::If => self.parse_if(),
             Token::Match => self.parse_match(),
-            Token::Fn => self.parse_fndef(),
             Token::BOpen => {
                 self.accept();
                 let expr = self.parse_expr();
@@ -187,8 +187,9 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_fndef(&mut self) -> Simp {
-        self.accept();
+    fn parse_fndef(&mut self) -> Expr {
+        self.accept(); // consume 'fn'
+        let name = self.expect_name();
         self.expect(Token::POpen);
 
         // parse name of args, comma separated
@@ -213,11 +214,15 @@ impl<'a> Parser<'a> {
         let ret = self.parse_otype();
         self.expect(Token::Eq);
 
-        Simp::FnDef(FnDef {
-            args,
-            body: Box::new(self.parse_simp()),
-            ret,
-        })
+        Expr::FnDef(
+            FnDef {
+                name,
+                args,
+                body: Box::new(self.parse_simp()),
+                ret,
+            },
+            Box::new(self.parse_expr()),
+        )
     }
 
     fn parse_simple_ops(&mut self, min_prec: i32) -> Simp {

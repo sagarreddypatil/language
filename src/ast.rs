@@ -116,12 +116,12 @@ impl Pattern {
 #[derive(Debug, Clone)]
 pub enum Expr {
     Bind(Pattern, Simp, Box<Expr>),
+    FnDef(FnDef, Box<Expr>),
     Simp(Simp)
 }
 
 #[derive(Debug, Clone)]
 pub enum Simp {
-    FnDef(FnDef),
     Match(Box<Simp>, Vec<(Pattern, Simp)>),
     FnCall(Box<Simp>, Vec<Simp>),
     Block(Box<Expr>),
@@ -136,6 +136,7 @@ pub enum Simp {
 
 #[derive(Debug, Clone)]
 pub struct FnDef {
+    pub name: Name,
     pub args: Vec<(Name, Type)>,
     pub body: Box<Simp>,
     pub ret: Type,

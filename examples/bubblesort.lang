@@ -1,6 +1,6 @@
 data List = Cons(Int, List) | Nil
 
-let sorted = fn(list) = match list
+fn sorted(list) = match list
     | Nil => true
     | Cons(_, Nil) => true
     | Cons(x, Cons(y, rest)) => if x <= y
@@ -8,21 +8,21 @@ let sorted = fn(list) = match list
         else false
 
 // test comment
-let bubble = fn(list) = match list
+fn bubble(list) = match list
     | Nil => Nil
     | Cons(x, Nil) => Cons(x, Nil)
     | Cons(x, Cons(y, rest)) => match x <= y
         | true => Cons(x, bubble(Cons(y, rest)))
         | false => Cons(y, bubble(Cons(x, rest)))
 
-let sort = fn(list) = match sorted(list)
+fn sort(list) = match sorted(list)
     | true  => list | false => sort(bubble(list))
 
-let append = fn(list1, list2) = match list1
+fn append(list1, list2) = match list1
     | Nil => list2
     | Cons(x, rest) => Cons(x, append(rest, list2))
 
-let reverse = fn(list) = match list
+fn reverse(list) = match list
     | Nil => Nil
     | Cons(x, rest) => append(reverse(rest), Cons(x, Nil))
 

@@ -28,7 +28,6 @@ impl fmt::Display for Type {
             TyVar(i) => write!(f, "T{}", i),
         }
     }
-
 }
 
 impl fmt::Display for TypeDef {
@@ -92,6 +91,10 @@ impl fmt::Display for Expr {
         use Expr::*;
         match self {
             Bind(pat, simp, expr) => write!(f, "let {} = {};\n{}", pat, simp, expr),
+            FnDef(fn_def, expr) => {
+                write!(f, "{}\n", fn_def)?;
+                write!(f, "{}", expr)
+            }
             Simp(simp) => write!(f, "{}", simp),
         }
     }
@@ -101,7 +104,6 @@ impl fmt::Display for Simp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use Simp::*;
         match self {
-            FnDef(fn_def) => write!(f, "{}", fn_def),
             Match(expr, arms) => {
                 write!(f, "match {} {{\n", expr)?;
                 for (i, (pat, simp)) in arms.iter().enumerate() {
@@ -147,13 +149,13 @@ impl fmt::Display for Simp {
 
 impl fmt::Display for FnDef {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "fn(")?;
+        write!(f, "fn {}(", self.name)?;
         for (i, (name, ty)) in self.args.iter().enumerate() {
             write!(f, "{}: {}", name, ty)?;
             if i < self.args.len() - 1 {
                 write!(f, ", ")?;
             }
-        };
+        }
         // indent body
         let body = format!("{}", self.body);
         let body = body.replace("}", "\n}");

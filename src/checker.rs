@@ -261,6 +261,29 @@ impl TypeChecker {
 
                 (t_body, x)
             }
+            FnDef(f, body) => {
+                let t_args = f.args.iter().map(|(_, ty)| ty.clone()).collect();
+                let t_fret = f.ret.clone();
+                let t_fn = Type::Fn(t_args, Box::new(t_fret.clone()));
+
+                let mut fnenv = env.clone();
+                fnenv.extend(f.args.clone());
+                fnenv.insert(f.name.clone(), t_fn.clone());
+
+                let (t_fbody, x_fbody) = self.infer_constraints_simp(fnenv, &*f.body);
+
+                let mut x_fn = x_fbody;
+                x_fn.push(TyConstraint(t_fret, t_fbody));
+                env.insert(f.name.clone(), t_fn.clone());
+
+                let (t_body, x_body) = self.infer_constraints_expr(env.clone(), body);
+
+                let mut x = vec![];
+                x.extend(x_fn);
+                x.extend(x_body);
+
+                (t_body, x)
+            }
             Simp(simp) => self.infer_constraints_simp(env, simp),
         }
     }
@@ -291,17 +314,6 @@ impl TypeChecker {
     fn infer_constraints_simp(&mut self, mut env: TyEnv, simp: &Simp) -> (Type, TyConstraints) {
         use Simp::*;
         match simp {
-            FnDef(f) => {
-                env.extend(f.args.clone());
-                let (t_body, x_body) = self.infer_constraints_simp(env, &*f.body);
-                let t_args = f.args.iter().map(|(_, ty)| ty.clone()).collect();
-                let t_ret = f.ret.clone();
-                let mut x_out = x_body;
-                x_out.push(TyConstraint(t_ret.clone(), t_body));
-                let t_fn = Type::Fn(t_args, Box::new(t_ret));
-
-                (t_fn, x_out)
-            }
             Match(simp, arms) => {
                 let (t_simp, x_simp) = self.infer_constraints_simp(env.clone(), simp);
                 let mut x_out = x_simp;
@@ -388,30 +400,40 @@ fn apply_subst_program(subst: &TySubst, program: Program) -> Program {
 }
 
 fn apply_subst_expr(subst: &TySubst, expr: Expr) -> Expr {
-    use Expr::*;
     match expr {
-        Bind(pat, simp, body) => {
+        Expr::Bind(pat, simp, body) => {
             let new_pat = apply_subst_pat(subst, pat);
             let new_simp = apply_subst_simp(subst, simp);
             let new_body = apply_subst_expr(subst, *body);
-            Bind(new_pat, new_simp, Box::new(new_body))
+            Expr::Bind(new_pat, new_simp, Box::new(new_body))
         }
-        Simp(simp) => Simp(apply_subst_simp(subst, simp)),
+        Expr::FnDef(f, body) => {
+            let new_args = f.args.iter().map(|(n, t)| (n.clone(), subst.apply(t.clone()))).collect();
+            let new_body = apply_subst_simp(subst, *f.body);
+            let new_ret = subst.apply(f.ret.clone());
+            Expr::FnDef(FnDef {
+                name: f.name,
+                args: new_args,
+                body: Box::new(new_body),
+                ret: new_ret,
+            }, Box::new(apply_subst_expr(subst, *body)))
+        }
+        Expr::Simp(simp) => Expr::Simp(apply_subst_simp(subst, simp)),
     }
 }
 
 fn apply_subst_simp(subst: &TySubst, simp: Simp) -> Simp {
     match simp {
-        Simp::FnDef(f) => {
-            let new_args = f.args.iter().map(|(n, t)| (n.clone(), subst.apply(t.clone()))).collect();
-            let new_body = apply_subst_simp(subst, *f.body);
-            let new_ret = subst.apply(f.ret.clone());
-            Simp::FnDef(FnDef {
-                args: new_args,
-                body: Box::new(new_body),
-                ret: new_ret,
-            })
-        }
+        // Simp::FnDef(f) => {
+        //     let new_args = f.args.iter().map(|(n, t)| (n.clone(), subst.apply(t.clone()))).collect();
+        //     let new_body = apply_subst_simp(subst, *f.body);
+        //     let new_ret = subst.apply(f.ret.clone());
+        //     Simp::FnDef(FnDef {
+        //         args: new_args,
+        //         body: Box::new(new_body),
+        //         ret: new_ret,
+        //     })
+        // }
         Simp::Match(s, arms) => {
             let new_s = apply_subst_simp(subst, *s);
             let new_arms = arms

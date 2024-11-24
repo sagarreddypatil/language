@@ -62,22 +62,70 @@ impl Env {
         Self {
             data_defs: HashMap::new(),
             bindings: HashMap::from([
-                (Name(String::from("+")),  Rc::new(RefCell::new(Some(Value::BuiltIn(add))))),
-                (Name(String::from("-")),  Rc::new(RefCell::new(Some(Value::BuiltIn(sub))))),
-                (Name(String::from("*")),  Rc::new(RefCell::new(Some(Value::BuiltIn(mul))))),
-                (Name(String::from("/")),  Rc::new(RefCell::new(Some(Value::BuiltIn(div))))),
-                (Name(String::from("%")),  Rc::new(RefCell::new(Some(Value::BuiltIn(mod_))))),
-                (Name(String::from("~")),  Rc::new(RefCell::new(Some(Value::BuiltIn(bnot))))),
-                (Name(String::from("==")), Rc::new(RefCell::new(Some(Value::BuiltIn(eq))))),
-                (Name(String::from("!=")), Rc::new(RefCell::new(Some(Value::BuiltIn(neq))))),
-                (Name(String::from("<")),  Rc::new(RefCell::new(Some(Value::BuiltIn(lt))))),
-                (Name(String::from(">")),  Rc::new(RefCell::new(Some(Value::BuiltIn(gt))))),
-                (Name(String::from("<=")), Rc::new(RefCell::new(Some(Value::BuiltIn(le))))),
-                (Name(String::from(">=")), Rc::new(RefCell::new(Some(Value::BuiltIn(ge))))),
-                (Name(String::from("&&")), Rc::new(RefCell::new(Some(Value::BuiltIn(and))))),
-                (Name(String::from("||")), Rc::new(RefCell::new(Some(Value::BuiltIn(or))))),
-                (Name(String::from("!")),  Rc::new(RefCell::new(Some(Value::BuiltIn(not))))),
-                (Name(String::from("println")), Rc::new(RefCell::new(Some(Value::BuiltIn(builtin_println))))),
+                (
+                    Name(String::from("+")),
+                    Rc::new(RefCell::new(Some(Value::BuiltIn(add)))),
+                ),
+                (
+                    Name(String::from("-")),
+                    Rc::new(RefCell::new(Some(Value::BuiltIn(sub)))),
+                ),
+                (
+                    Name(String::from("*")),
+                    Rc::new(RefCell::new(Some(Value::BuiltIn(mul)))),
+                ),
+                (
+                    Name(String::from("/")),
+                    Rc::new(RefCell::new(Some(Value::BuiltIn(div)))),
+                ),
+                (
+                    Name(String::from("%")),
+                    Rc::new(RefCell::new(Some(Value::BuiltIn(mod_)))),
+                ),
+                (
+                    Name(String::from("~")),
+                    Rc::new(RefCell::new(Some(Value::BuiltIn(bnot)))),
+                ),
+                (
+                    Name(String::from("==")),
+                    Rc::new(RefCell::new(Some(Value::BuiltIn(eq)))),
+                ),
+                (
+                    Name(String::from("!=")),
+                    Rc::new(RefCell::new(Some(Value::BuiltIn(neq)))),
+                ),
+                (
+                    Name(String::from("<")),
+                    Rc::new(RefCell::new(Some(Value::BuiltIn(lt)))),
+                ),
+                (
+                    Name(String::from(">")),
+                    Rc::new(RefCell::new(Some(Value::BuiltIn(gt)))),
+                ),
+                (
+                    Name(String::from("<=")),
+                    Rc::new(RefCell::new(Some(Value::BuiltIn(le)))),
+                ),
+                (
+                    Name(String::from(">=")),
+                    Rc::new(RefCell::new(Some(Value::BuiltIn(ge)))),
+                ),
+                (
+                    Name(String::from("&&")),
+                    Rc::new(RefCell::new(Some(Value::BuiltIn(and)))),
+                ),
+                (
+                    Name(String::from("||")),
+                    Rc::new(RefCell::new(Some(Value::BuiltIn(or)))),
+                ),
+                (
+                    Name(String::from("!")),
+                    Rc::new(RefCell::new(Some(Value::BuiltIn(not)))),
+                ),
+                (
+                    Name(String::from("println")),
+                    Rc::new(RefCell::new(Some(Value::BuiltIn(builtin_println)))),
+                ),
             ]),
         }
     }
@@ -87,7 +135,8 @@ impl Env {
             let mut entry = entry.borrow_mut();
             *entry = Some(value);
         } else {
-            self.bindings.insert(name, Rc::new(RefCell::new(Some(value))));
+            self.bindings
+                .insert(name, Rc::new(RefCell::new(Some(value))));
         }
 
         self
@@ -136,6 +185,25 @@ fn free_vars_expr(expr: &Expr) -> Vec<Name> {
                 .filter(|name| !nbound.contains(name))
                 .collect()
         }
+        FnDef(f, body) => {
+            let args = f
+                .args
+                .iter()
+                .map(|(name, _)| name.clone())
+                .collect::<Vec<_>>();
+            let fun_free = free_vars_simp(&f.body)
+                .into_iter()
+                .filter(|name| !args.contains(name));
+
+            let body_free = free_vars_expr(body);
+            let nbound = f.name.clone();
+
+            body_free
+                .into_iter()
+                .filter(|name| name != &nbound)
+                .chain(fun_free)
+                .collect()
+        }
         Simp(s) => free_vars_simp(s),
     }
 }
@@ -143,18 +211,6 @@ fn free_vars_expr(expr: &Expr) -> Vec<Name> {
 fn free_vars_simp(simp: &Simp) -> Vec<Name> {
     use Simp::*;
     match simp {
-        FnDef(f) => {
-            let nargs = f
-                .args
-                .iter()
-                .map(|(name, _)| name.clone())
-                .collect::<Vec<_>>();
-
-            free_vars_simp(&f.body)
-                .into_iter()
-                .filter(|name| !nargs.contains(name))
-                .collect()
-        }
         Match(s, arms) => {
             let free_s = free_vars_simp(s);
             let free_arms = arms.into_iter().flat_map(|(pat, body)| {
@@ -206,6 +262,31 @@ fn eval_expr(env: Env, expr: &Expr) -> Value {
 
             eval_expr(nenv, body)
         }
+        FnDef(f, body) => {
+            let free_vars = free_vars_simp(&f.body)
+                .into_iter()
+                .filter(|name| {
+                    f.args.iter().all(|(arg_name, _)| arg_name != name) && f.name != *name
+                })
+                .collect::<Vec<_>>();
+
+            let closure_env = env.clone().capture(&free_vars).bind_late(f.name.clone());
+            let f_rc = Rc::new(f.clone());
+
+            let mut closure = Value::Closure(closure_env, f_rc);
+            let closure_clone = closure.clone();
+            match &mut closure {
+                Value::Closure(closure_env, _) => {
+                    *closure_env.bindings.get_mut(&f.name).unwrap().borrow_mut() =
+                        Some(closure_clone);
+                }
+                _ => unreachable!(),
+            }
+
+            let nenv = env.bind(f.name.clone(), closure);
+
+            eval_expr(nenv, body)
+        }
         Simp(s) => eval_simp(env, s),
     }
 }
@@ -213,12 +294,6 @@ fn eval_expr(env: Env, expr: &Expr) -> Value {
 fn eval_simp(env: Env, simp: &Simp) -> Value {
     use Simp::*;
     match simp {
-        FnDef(f) => {
-            let free_vars = free_vars_simp(simp);
-            let closure_env = env.capture(&free_vars);
-
-            Value::Closure(closure_env, f.clone().into())
-        }
         Match(s, arms) => {
             let value = eval_simp(env.clone(), s);
             for (pat, body) in arms {

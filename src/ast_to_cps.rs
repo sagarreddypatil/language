@@ -94,29 +94,6 @@ impl AstToCps {
     fn lower_simp(&mut self, simp: Simp, ctx: Context) -> CpsExpr {
         use Simp::*;
         match simp {
-            FnDef(f) => {
-                let anon = self.fresh("fn".to_string());
-                let retc = self.fresh("rc".to_string());
-                let args = f.args.iter().map(|(name, _)| name.clone()).collect();
-
-                let lfun = FunDef {
-                    name: anon.clone(),
-                    ret: retc.clone(),
-                    args,
-                    body: self.lower_simp(
-                        *f.body,
-                        Box::new(move |_, ret| CpsExpr::AppC {
-                            cnt: retc.clone(),
-                            args: vec![ret],
-                        }),
-                    ),
-                };
-
-                CpsExpr::Funs {
-                    funs: vec![lfun],
-                    body: Box::new(ctx(self, anon)),
-                }
-            }
             Match(simp, arms) => self.lower_simp(
                 *simp,
                 Box::new(|s, simp| {
@@ -384,6 +361,28 @@ impl AstToCps {
                     s.lower_pattern_match(pat, rhs, body, Name("halt".to_string()))
                 }),
             ),
+            Expr::FnDef(f, body) => {
+                let retc = self.fresh("rc".to_string());
+                let args = f.args.iter().map(|(name, _)| name.clone()).collect();
+
+                let lfun = FunDef {
+                    name: f.name,
+                    ret: retc.clone(),
+                    args,
+                    body: self.lower_simp(
+                        *f.body,
+                        Box::new(move |_, ret| CpsExpr::AppC {
+                            cnt: retc.clone(),
+                            args: vec![ret],
+                        }),
+                    ),
+                };
+
+                CpsExpr::Funs {
+                    funs: vec![lfun],
+                    body: Box::new(self.lower_expr(*body)),
+                }
+            }
             Expr::Simp(simp) => self.lower_simp(simp, Box::new(|_, rhs| CpsExpr::Halt(rhs))),
         }
     }
