@@ -63,5 +63,5 @@ fn main() {
     }
 
     println!("{:#}", cps);
-    println!("{:#?}", cps.free());
+    // println!("{:#?}", cps.free());
 }

@@ -104,8 +104,6 @@ impl TyEnv {
                 (Name(String::from("&&")), bool_bool_op.clone()),
                 (Name(String::from("||")), bool_bool_op.clone()),
                 (Name(String::from("!")), bool_unary_op.clone()),
-
-                (Name(String::from("println")), Type::Fn(vec![Type::Int], Box::new(Type::Unit))),
             ]),
         }
     }

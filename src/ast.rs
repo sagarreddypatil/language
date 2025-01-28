@@ -93,7 +93,7 @@ pub struct Cons {
 
 #[derive(Debug, Clone)]
 pub enum Pattern {
-    Var(Name, Type), // naive binding
+    Var(Name, Type),
     Int(i64),
     Bool(bool),
     Data(DataDef, Name, Vec<Pattern>),

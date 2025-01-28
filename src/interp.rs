@@ -122,10 +122,6 @@ impl Env {
                     Name(String::from("!")),
                     Rc::new(RefCell::new(Some(Value::BuiltIn(not)))),
                 ),
-                (
-                    Name(String::from("println")),
-                    Rc::new(RefCell::new(Some(Value::BuiltIn(builtin_println)))),
-                ),
             ]),
         }
     }

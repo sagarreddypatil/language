@@ -120,9 +120,3 @@ pub fn not(args: Vec<Value>) -> Value {
     let x = get_bool!(args[0]);
     Value::Bool(!x)
 }
-
-pub fn builtin_println(args: Vec<Value>) -> Value {
-    assert!(args.len() == 1);
-    println!("{}", args[0]);
-    Value::Unit
-}
